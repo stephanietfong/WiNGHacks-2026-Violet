@@ -6,13 +6,13 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import LoginScreen from "./screens/(auth)/login";
+import SignupScreen from "./screens/(auth)/signup";
+import Discovery from "./screens/(tabs)/discovery";
+import LikesPage from "./screens/(tabs)/likes";
+import MessagesPage from "./screens/(tabs)/messages";
+import ProfilePage from "./screens/(tabs)/profile";
 import LandingScreen from "./screens/landing";
-import LoginScreen from "./screens/login";
-import SignupScreen from "./screens/signup";
-import Discovery from "./screens/tabs/discovery";
-import LikesPage from "./screens/tabs/likes";
-import MessagesPage from "./screens/tabs/messages";
-import ProfilePage from "./screens/tabs/profile";
 
 export const unstable_settings = {
   anchor: "(tabs)",
