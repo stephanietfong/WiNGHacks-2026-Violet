@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router"; // Assuming Expo Router, or use navigation.navigate
+import { AuthToggle } from "@/components/auth-toggle";
 import React, { useState } from "react";
 import {
   Alert,
@@ -65,8 +65,19 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Join Our Community</Text>
-      <Text style={styles.subtitle}>Safe. Authentic. Verified.</Text>
+      <AuthToggle
+        active="signup"
+        onLoginPress={() => router.push("/screens/(auth)/login")}
+        onSignupPress={() => {}}
+      />
+      <Text style={styles.title}>Create Account</Text>
+
+      <TextInput
+        placeholder="Name"
+        value={name}
+        onChangeText={setName}
+        style={styles.input}
+      />
 
       <TextInput
         placeholder="School Email (.edu)"

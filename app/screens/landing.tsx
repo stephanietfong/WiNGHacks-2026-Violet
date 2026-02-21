@@ -1,32 +1,45 @@
 import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
 import { RootStackParamList } from "@/types/navigation";
+import { Link } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "landing">;
 
 export default function LandingScreen({ navigation }: Props) {
+  const logoImage = require("../../assets/images/logo.png");
+
   return (
-    <View style={styles.container}>
-      <ThemedText type="title">CampusConnect 💕</ThemedText>
+    <ThemedView style={styles.container}>
+      <Image source={logoImage} />
+      <ThemedText type="default">Finally, a space just for women.</ThemedText>
 
-      <ThemedText type="subtitle">Meet students at your university</ThemedText>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("login")}
+        >
+          <Text style={styles.buttonText}>Log In</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("login")}
-      >
-        <Text style={styles.buttonText}>Log In</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("signup")}
+        >
+          <Text style={styles.buttonText}>Sign Up</Text>
+        </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity
-        style={styles.outlineButton}
-        onPress={() => navigation.navigate("signup")}
-      >
-        <ThemedText type="default">Sign Up</ThemedText>
-      </TouchableOpacity>
-    </View>
+      <Link screen="terms" params={{}}>
+        <ThemedText type="link">Terms and Conditions</ThemedText>
+      </Link>
+
+      <Link screen="about" params={{}}>
+        <ThemedText type="link">About Us</ThemedText>
+      </Link>
+    </ThemedView>
   );
 }
 
@@ -38,33 +51,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 20,
   },
-
   button: {
-    backgroundColor: "#ff5a5f",
-    padding: 15,
-    width: "80%",
+    backgroundColor: "rgba(168, 147, 206, 1)",
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 20,
+    paddingRight: 20,
     borderRadius: 10,
     alignItems: "center",
-    marginBottom: 15,
   },
-
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignContent: "center",
+    marginTop: 20,
+    marginBottom: 20,
+    gap: 5,
+  },
   buttonText: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  outlineButton: {
-    borderWidth: 2,
-    borderColor: "#ff5a5f",
-    padding: 15,
-    width: "80%",
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  outlineText: {
-    color: "#ff5a5f",
     fontSize: 16,
     fontWeight: "bold",
   },
