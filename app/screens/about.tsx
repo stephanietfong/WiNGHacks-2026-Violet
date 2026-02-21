@@ -20,7 +20,7 @@ export default function AboutScreen({ navigation }: Props) {
       <ThemedView style={styles.container}>
         <Image source={logoImage} />
         <View style={styles.allTextContainer}>
-          <View style={[styles.textContainer, styles.introText]}>
+          <View style={styles.textContainer}>
             <ThemedText type="subtitle" style={styles.introText}>
               Finally, a Space Just for Women.
             </ThemedText>
