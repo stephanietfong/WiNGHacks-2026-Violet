@@ -8,6 +8,7 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import LandingScreen from "./screens/landing";
 import LoginScreen from "./screens/login";
+import SetupScreen from "./screens/setup";
 import SignupScreen from "./screens/signup";
 import DiscoveryPage from "./screens/tabs/discovery";
 import LikesPage from "./screens/tabs/likes";
@@ -26,12 +27,13 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack.Navigator
-        initialRouteName="landing"
+        initialRouteName="setup"
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="landing" component={LandingScreen} />
         <Stack.Screen name="login" component={LoginScreen} />
         <Stack.Screen name="signup" component={SignupScreen} />
+        <Stack.Screen name="setup" component={SetupScreen} />
         <Stack.Screen name="discovery" component={DiscoveryPage} />
         <Stack.Screen name="likes" component={LikesPage} />
         <Stack.Screen name="messages" component={MessagesPage} />
