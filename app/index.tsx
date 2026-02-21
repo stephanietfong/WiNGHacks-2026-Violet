@@ -9,7 +9,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import LandingScreen from "./screens/landing";
 import LoginScreen from "./screens/login";
 import SignupScreen from "./screens/signup";
-import DiscoveryPage from "./screens/tabs/discovery";
+import Discovery from "./screens/tabs/discovery";
 import LikesPage from "./screens/tabs/likes";
 import MessagesPage from "./screens/tabs/messages";
 import ProfilePage from "./screens/tabs/profile";
@@ -32,7 +32,7 @@ export default function RootLayout() {
         <Stack.Screen name="landing" component={LandingScreen} />
         <Stack.Screen name="login" component={LoginScreen} />
         <Stack.Screen name="signup" component={SignupScreen} />
-        <Stack.Screen name="discovery" component={DiscoveryPage} />
+        <Stack.Screen name="discovery" component={Discovery} />
         <Stack.Screen name="likes" component={LikesPage} />
         <Stack.Screen name="messages" component={MessagesPage} />
         <Stack.Screen name="profile" component={ProfilePage} />
