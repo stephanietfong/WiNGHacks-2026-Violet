@@ -1,54 +1,371 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Image,
+  Modal,
+  PanResponder,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Interest {
   name: string;
-  selected: boolean;
 }
 
 export default function PreferencesSetup() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { userId } = useLocalSearchParams();
+  const {
+    userId,
+    firstName: firstNameParam,
+    phone: phoneParam,
+    age: ageParam,
+    selectedFeet: selectedFeetParam,
+    selectedInches: selectedInchesParam,
+    heightLabel: heightLabelParam,
+    interests: interestsParam,
+    minAge: minAgeParam,
+    maxAge: maxAgeParam,
+    distanceMiles: distanceMilesParam,
+    relationshipType: relationshipTypeParam,
+    locationPermission: locationPermissionParam,
+    latitude: latitudeParam,
+    longitude: longitudeParam,
+    photos: photosParam,
+  } = useLocalSearchParams();
+
+  const readParam = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+
+  const parseNumberParam = (
+    value: string | string[] | undefined,
+    fallback: number,
+  ) => {
+    const raw = readParam(value);
+    if (raw === undefined || raw === null || raw === "") {
+      return fallback;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const parseListParam = (value: string | string[] | undefined) => {
+    const raw = readParam(value);
+    if (!raw) return [] as string[];
+    return raw
+      .split("|")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const resolvedUserId = readParam(userId);
+  const MIN_AGE = 18;
+  const MAX_AGE = 100;
+  const MIN_DISTANCE = 1;
+  const MAX_DISTANCE = 1000;
+  const thumbSize = 20;
+
+  const initialLatitude = Number(readParam(latitudeParam));
+  const initialLongitude = Number(readParam(longitudeParam));
+  const hasInitialLocation =
+    Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
 
   // State
   const [interests, setInterests] = useState<Interest[]>([]);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [minAge, setMinAge] = useState(18);
-  const [maxAge, setMaxAge] = useState(100);
-  const [distanceMiles, setDistanceMiles] = useState(50);
-  const [relationshipType, setRelationshipType] = useState("casual");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(
+    parseListParam(interestsParam),
+  );
+  const [interestQuery, setInterestQuery] = useState("");
+  const [minAge, setMinAge] = useState(parseNumberParam(minAgeParam, 18));
+  const [maxAge, setMaxAge] = useState(parseNumberParam(maxAgeParam, 100));
+  const [distanceMiles, setDistanceMiles] = useState(
+    parseNumberParam(distanceMilesParam, 50),
+  );
+  const [relationshipType, setRelationshipType] = useState(
+    readParam(relationshipTypeParam) || "Casual",
+  );
   const [locationPermission, setLocationPermission] = useState<string | null>(
-    null,
+    readParam(locationPermissionParam) || null,
   );
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
-  } | null>(null);
+  } | null>(
+    hasInitialLocation
+      ? { latitude: initialLatitude, longitude: initialLongitude }
+      : null,
+  );
   const [showRelationshipDropdown, setShowRelationshipDropdown] =
     useState(false);
-  const [ageSliderWidth, setAgeSliderWidth] = useState(0);
-  const [distanceSliderWidth, setDistanceSliderWidth] = useState(0);
+  const [relationshipDropdownAnchor, setRelationshipDropdownAnchor] = useState({
+    x: 24,
+    y: 260,
+    width: 280,
+  });
+  const relationshipDropdownTriggerRef = useRef<View>(null);
+
+  const openRelationshipDropdown = () => {
+    relationshipDropdownTriggerRef.current?.measureInWindow(
+      (x, y, width, height) => {
+        setRelationshipDropdownAnchor({
+          x,
+          y: y + height + 4,
+          width,
+        });
+        setShowRelationshipDropdown(true);
+      },
+    );
+  };
+
+  const ageSliderWidth = useRef(0);
+  const distanceSliderWidth = useRef(0);
+  const minAnimX = useRef(new Animated.Value(0)).current;
+  const maxAnimX = useRef(new Animated.Value(0)).current;
+  const distanceAnimX = useRef(new Animated.Value(0)).current;
+  const minAgeRef = useRef(minAge);
+  const maxAgeRef = useRef(maxAge);
+  const distanceRef = useRef(distanceMiles);
 
   const relationshipOptions = [
-    "casual",
-    "long-term",
-    "hookup",
-    "i dont know",
-    "friends with benefits",
+    "Casual",
+    "Short-term",
+    "Long-term",
+    "Hookup",
+    "Friends with Benefits",
+    "I don't know",
   ];
+
+  const filteredInterests = interests
+    .filter((interest) => {
+      const query = interestQuery.trim().toLowerCase();
+      if (!query) return false;
+
+      const alreadySelected = selectedInterests.some(
+        (selected) => selected.toLowerCase() === interest.name.toLowerCase(),
+      );
+
+      return !alreadySelected && interest.name.toLowerCase().includes(query);
+    })
+    .slice(0, 8);
+
+  const valueToPosition = (
+    value: number,
+    minValue: number,
+    maxValue: number,
+    width: number,
+  ) => {
+    const usable = Math.max(0, width - thumbSize);
+    if (usable <= 0) return 0;
+    return ((value - minValue) / (maxValue - minValue)) * usable;
+  };
+
+  const positionToValue = (
+    position: number,
+    minValue: number,
+    maxValue: number,
+    width: number,
+  ) => {
+    const usable = Math.max(0, width - thumbSize);
+    if (usable <= 0) return minValue;
+    const ratio = position / usable;
+    return Math.round(minValue + ratio * (maxValue - minValue));
+  };
+
+  useEffect(() => {
+    minAgeRef.current = minAge;
+  }, [minAge]);
+
+  useEffect(() => {
+    maxAgeRef.current = maxAge;
+  }, [maxAge]);
+
+  useEffect(() => {
+    distanceRef.current = distanceMiles;
+  }, [distanceMiles]);
+
+  useEffect(() => {
+    const minId = minAnimX.addListener(({ value }) => {
+      const width = ageSliderWidth.current;
+      if (width <= 0) return;
+      const rawMin = positionToValue(value, MIN_AGE, MAX_AGE, width);
+      const nextMin = Math.min(rawMin, maxAgeRef.current - 1);
+      if (nextMin !== minAgeRef.current) {
+        setMinAge(nextMin);
+      }
+    });
+
+    const maxId = maxAnimX.addListener(({ value }) => {
+      const width = ageSliderWidth.current;
+      if (width <= 0) return;
+      const rawMax = positionToValue(value, MIN_AGE, MAX_AGE, width);
+      const nextMax = Math.max(rawMax, minAgeRef.current + 1);
+      if (nextMax !== maxAgeRef.current) {
+        setMaxAge(nextMax);
+      }
+    });
+
+    const distanceId = distanceAnimX.addListener(({ value }) => {
+      const width = distanceSliderWidth.current;
+      if (width <= 0) return;
+      const nextDistance = positionToValue(
+        value,
+        MIN_DISTANCE,
+        MAX_DISTANCE,
+        width,
+      );
+      if (nextDistance !== distanceRef.current) {
+        setDistanceMiles(nextDistance);
+      }
+    });
+
+    return () => {
+      minAnimX.removeListener(minId);
+      maxAnimX.removeListener(maxId);
+      distanceAnimX.removeListener(distanceId);
+    };
+  }, [distanceAnimX, maxAnimX, minAnimX]);
+
+  const ageMinPanRef = useRef<{ startX: number } | null>(null);
+  const ageMaxPanRef = useRef<{ startX: number } | null>(null);
+  const distancePanRef = useRef<{ startX: number } | null>(null);
+
+  const minPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        minAnimX.stopAnimation((value: number) => {
+          ageMinPanRef.current = { startX: value };
+        });
+      },
+      onPanResponderMove: (_, gs) => {
+        if (!ageMinPanRef.current) return;
+        const width = ageSliderWidth.current;
+        const usable = Math.max(0, width - thumbSize);
+        const maxAllowed = valueToPosition(
+          maxAgeRef.current - 1,
+          MIN_AGE,
+          MAX_AGE,
+          width,
+        );
+        const next = Math.min(
+          Math.max(0, ageMinPanRef.current.startX + gs.dx),
+          Math.min(usable, maxAllowed),
+        );
+        minAnimX.setValue(next);
+      },
+      onPanResponderRelease: () => {
+        ageMinPanRef.current = null;
+      },
+    }),
+  ).current;
+
+  const maxPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        maxAnimX.stopAnimation((value: number) => {
+          ageMaxPanRef.current = { startX: value };
+        });
+      },
+      onPanResponderMove: (_, gs) => {
+        if (!ageMaxPanRef.current) return;
+        const width = ageSliderWidth.current;
+        const usable = Math.max(0, width - thumbSize);
+        const minAllowed = valueToPosition(
+          minAgeRef.current + 1,
+          MIN_AGE,
+          MAX_AGE,
+          width,
+        );
+        const next = Math.min(
+          Math.max(minAllowed, ageMaxPanRef.current.startX + gs.dx),
+          usable,
+        );
+        maxAnimX.setValue(next);
+      },
+      onPanResponderRelease: () => {
+        ageMaxPanRef.current = null;
+      },
+    }),
+  ).current;
+
+  const distancePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        distanceAnimX.stopAnimation((value: number) => {
+          distancePanRef.current = { startX: value };
+        });
+      },
+      onPanResponderMove: (_, gs) => {
+        if (!distancePanRef.current) return;
+        const usable = Math.max(0, distanceSliderWidth.current - thumbSize);
+        const next = Math.min(
+          Math.max(0, distancePanRef.current.startX + gs.dx),
+          usable,
+        );
+        distanceAnimX.setValue(next);
+      },
+      onPanResponderRelease: () => {
+        distancePanRef.current = null;
+      },
+    }),
+  ).current;
+
+  const handleAgeSliderTap = (e: any) => {
+    const width = ageSliderWidth.current;
+    const usable = Math.max(0, width - thumbSize);
+    if (usable <= 0) return;
+
+    const tappedPosition = Math.min(
+      Math.max(0, e.nativeEvent.locationX - thumbSize / 2),
+      usable,
+    );
+
+    const minPos = valueToPosition(minAgeRef.current, MIN_AGE, MAX_AGE, width);
+    const maxPos = valueToPosition(maxAgeRef.current, MIN_AGE, MAX_AGE, width);
+
+    if (
+      Math.abs(tappedPosition - minPos) <= Math.abs(tappedPosition - maxPos)
+    ) {
+      const maxAllowed = valueToPosition(
+        maxAgeRef.current - 1,
+        MIN_AGE,
+        MAX_AGE,
+        width,
+      );
+      minAnimX.setValue(Math.min(tappedPosition, maxAllowed));
+      return;
+    }
+
+    const minAllowed = valueToPosition(
+      minAgeRef.current + 1,
+      MIN_AGE,
+      MAX_AGE,
+      width,
+    );
+    maxAnimX.setValue(Math.max(tappedPosition, minAllowed));
+  };
+
+  const handleDistanceTap = (e: any) => {
+    const usable = Math.max(0, distanceSliderWidth.current - thumbSize);
+    if (usable <= 0) return;
+    const tappedPosition = Math.min(
+      Math.max(0, e.nativeEvent.locationX - thumbSize / 2),
+      usable,
+    );
+    distanceAnimX.setValue(tappedPosition);
+  };
 
   // Fetch interests from server
   useEffect(() => {
@@ -58,7 +375,6 @@ export default function PreferencesSetup() {
         const data = await response.json();
         const interestsList = data.interests.map((interest: string) => ({
           name: interest,
-          selected: false,
         }));
         setInterests(interestsList);
       } catch (error) {
@@ -68,14 +384,40 @@ export default function PreferencesSetup() {
     fetchInterests();
   }, []);
 
-  // Handle interest selection
-  const toggleInterest = (index: number) => {
-    const updated = [...interests];
-    updated[index].selected = !updated[index].selected;
-    setInterests(updated);
+  const addInterest = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
 
-    const selected = updated.filter((i) => i.selected).map((i) => i.name);
-    setSelectedInterests(selected);
+    const normalized = trimmed.toLowerCase();
+    if (
+      selectedInterests.some(
+        (selected) => selected.toLowerCase() === normalized,
+      )
+    ) {
+      setInterestQuery("");
+      return;
+    }
+
+    if (selectedInterests.length >= 9) {
+      Alert.alert("Limit Reached", "You can select up to 9 interests");
+      return;
+    }
+
+    const matchingInterest = interests.find(
+      (interest) => interest.name.toLowerCase() === normalized,
+    );
+
+    setSelectedInterests((prev) => [
+      ...prev,
+      matchingInterest?.name || trimmed,
+    ]);
+    setInterestQuery("");
+  };
+
+  const removeInterest = (value: string) => {
+    setSelectedInterests((prev) =>
+      prev.filter((interest) => interest.toLowerCase() !== value.toLowerCase()),
+    );
   };
 
   // Handle location permission
@@ -114,14 +456,6 @@ export default function PreferencesSetup() {
 
   // Submit preferences
   const handleNext = async () => {
-    if (selectedInterests.length < 3 || selectedInterests.length > 9) {
-      Alert.alert(
-        "Invalid Selection",
-        "Please select between 3 and 9 interests",
-      );
-      return;
-    }
-
     if (!location && locationPermission !== "denied") {
       Alert.alert(
         "Location Required",
@@ -132,7 +466,7 @@ export default function PreferencesSetup() {
 
     try {
       const response = await fetch(
-        `http://10.136.197.71:3000/setup/page-2/${userId}`,
+        `http://10.136.197.71:3000/setup/page-2/${resolvedUserId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -154,7 +488,24 @@ export default function PreferencesSetup() {
       if (response.ok) {
         router.push({
           pathname: "/screens/setup3" as any,
-          params: { userId },
+          params: {
+            userId: resolvedUserId,
+            firstName: readParam(firstNameParam) ?? "",
+            phone: readParam(phoneParam) ?? "",
+            age: readParam(ageParam) ?? "",
+            selectedFeet: readParam(selectedFeetParam) ?? "",
+            selectedInches: readParam(selectedInchesParam) ?? "",
+            heightLabel: readParam(heightLabelParam) ?? "",
+            interests: selectedInterests.join("|"),
+            minAge: String(minAge),
+            maxAge: String(maxAge),
+            distanceMiles: String(distanceMiles),
+            relationshipType,
+            locationPermission: locationPermission ?? "",
+            latitude: location ? String(location.latitude) : "",
+            longitude: location ? String(location.longitude) : "",
+            photos: readParam(photosParam) ?? "",
+          },
         });
       } else {
         Alert.alert("Error", data.message || "Failed to save preferences");
@@ -168,41 +519,76 @@ export default function PreferencesSetup() {
   };
 
   return (
-    <LinearGradient
-      colors={["#FE9FB8", "#FEB2AB"]}
-      style={[styles.gradient, { paddingTop: insets.top }]}
-    >
+    <LinearGradient colors={["#FE9FB8", "#FEB2AB"]} style={styles.gradient}>
+      <Image
+        source={require("../../assets/images/heart_b.png")}
+        style={styles.heartTopLeft}
+        resizeMode="contain"
+      />
+      <Image
+        source={require("../../assets/images/heart_t.png")}
+        style={styles.heartBottomRight}
+        resizeMode="contain"
+      />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
       >
         <Text style={styles.heading}>Your Preferences</Text>
 
         {/* Interests */}
-        <Text style={styles.label}>Interests (Select 3-9)</Text>
-        <View style={styles.interestsGrid}>
-          {interests.map((interest, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.interestTag,
-                interest.selected && styles.interestTagSelected,
-              ]}
-              onPress={() => toggleInterest(index)}
-            >
-              <Text
-                style={[
-                  styles.interestText,
-                  interest.selected && styles.interestTextSelected,
-                ]}
-              >
-                {interest.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <Text style={styles.label}>Interests</Text>
+        <View style={styles.interestInputWrapper}>
+          <View style={styles.interestInputContainer}>
+            <View style={styles.selectedInterestsRow}>
+              {selectedInterests.map((interest) => (
+                <View key={interest} style={styles.selectedInterestTag}>
+                  <Text style={styles.selectedInterestText}>{interest}</Text>
+                  <TouchableOpacity
+                    style={styles.removeInterestButton}
+                    onPress={() => removeInterest(interest)}
+                  >
+                    <Text style={styles.removeInterestText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.interestInput}
+              placeholder="Type an interest"
+              placeholderTextColor="#6b5a7f"
+              value={interestQuery}
+              onChangeText={setInterestQuery}
+              onSubmitEditing={() => addInterest(interestQuery)}
+              returnKeyType="done"
+              blurOnSubmit={false}
+            />
+          </View>
+
+          {filteredInterests.length > 0 && (
+            <View style={styles.interestSuggestions}>
+              {filteredInterests.map((interest, index) => (
+                <TouchableOpacity
+                  key={interest.name}
+                  style={[
+                    styles.interestSuggestionItem,
+                    index === filteredInterests.length - 1 &&
+                      styles.interestSuggestionLast,
+                  ]}
+                  onPress={() => addInterest(interest.name)}
+                >
+                  <Text style={styles.interestSuggestionText}>
+                    {interest.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
-        <Text style={styles.small}>Selected: {selectedInterests.length}/9</Text>
 
         {/* Age Range */}
         <Text style={styles.label}>Age Preference</Text>
@@ -211,45 +597,107 @@ export default function PreferencesSetup() {
             <Text style={styles.ageLabel}>Min: {minAge}</Text>
             <Text style={styles.ageLabel}>Max: {maxAge}</Text>
           </View>
-          <View style={styles.sliderContainer}>
+          <View style={styles.sliderRow}>
             <Text style={styles.small}>18</Text>
-            <View style={styles.doubleSlider}>
-              <TouchableOpacity
-                style={[styles.ageSliderTrack, { flex: 1 }]}
-                onLayout={(e) => setAgeSliderWidth(e.nativeEvent.layout.width)}
-                onPress={(e) => {
-                  if (ageSliderWidth > 0) {
-                    const newMin = Math.round(
-                      18 +
-                        (e.nativeEvent.locationX / ageSliderWidth) * (100 - 18),
-                    );
-                    if (newMin < maxAge) setMinAge(newMin);
-                  }
-                }}
+            <TouchableOpacity
+              style={styles.ageSlider}
+              onLayout={(e) => {
+                ageSliderWidth.current = e.nativeEvent.layout.width;
+                minAnimX.setValue(
+                  valueToPosition(
+                    minAgeRef.current,
+                    MIN_AGE,
+                    MAX_AGE,
+                    ageSliderWidth.current,
+                  ),
+                );
+                maxAnimX.setValue(
+                  valueToPosition(
+                    maxAgeRef.current,
+                    MIN_AGE,
+                    MAX_AGE,
+                    ageSliderWidth.current,
+                  ),
+                );
+              }}
+              onPress={handleAgeSliderTap}
+              activeOpacity={1}
+            >
+              <Animated.View
+                style={[
+                  styles.animatedFill,
+                  {
+                    transform: [{ translateX: minAnimX }],
+                    width: Animated.add(
+                      Animated.subtract(maxAnimX, minAnimX),
+                      new Animated.Value(thumbSize),
+                    ) as any,
+                  },
+                ]}
+              />
+
+              <Animated.View
+                {...minPanResponder.panHandlers}
+                style={[
+                  styles.animatedThumb,
+                  {
+                    transform: [{ translateX: minAnimX }],
+                  },
+                ]}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              />
+
+              <Animated.View
+                {...maxPanResponder.panHandlers}
+                style={[
+                  styles.animatedThumb,
+                  {
+                    transform: [{ translateX: maxAnimX }],
+                  },
+                ]}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              />
+
+              <Animated.View
+                style={[
+                  styles.ageTooltip,
+                  {
+                    transform: [
+                      {
+                        translateX: Animated.add(
+                          minAnimX,
+                          new Animated.Value((thumbSize - 40) / 2),
+                        ),
+                      },
+                    ],
+                  },
+                ]}
+                pointerEvents="none"
               >
-                <View
-                  style={[
-                    styles.ageSliderFill,
-                    {
-                      left: `${((minAge - 18) / (100 - 18)) * 100}%`,
-                      right: `${100 - ((maxAge - 18) / (100 - 18)) * 100}%`,
-                    },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.ageSliderThumb,
-                    { left: `${((minAge - 18) / (100 - 18)) * 100}%` },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.ageSliderThumb,
-                    { left: `${((maxAge - 18) / (100 - 18)) * 100}%` },
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.ageTooltipText}>{minAge}</Text>
+                <View style={styles.tooltipTriangle} />
+              </Animated.View>
+
+              <Animated.View
+                style={[
+                  styles.ageTooltip,
+                  {
+                    transform: [
+                      {
+                        translateX: Animated.add(
+                          maxAnimX,
+                          new Animated.Value((thumbSize - 40) / 2),
+                        ),
+                      },
+                    ],
+                  },
+                ]}
+                pointerEvents="none"
+              >
+                <Text style={styles.ageTooltipText}>{maxAge}</Text>
+                <View style={styles.tooltipTriangle} />
+              </Animated.View>
+            </TouchableOpacity>
             <Text style={styles.small}>100</Text>
           </View>
         </View>
@@ -258,40 +706,66 @@ export default function PreferencesSetup() {
         <Text style={styles.label}>Search Radius (Miles)</Text>
         <View style={styles.distanceContainer}>
           <Text style={styles.distanceValue}>{distanceMiles} miles</Text>
-          <View style={styles.sliderContainer}>
+          <View style={styles.sliderRow}>
             <Text style={styles.small}>1</Text>
             <TouchableOpacity
               style={styles.distanceSlider}
-              onLayout={(e) =>
-                setDistanceSliderWidth(e.nativeEvent.layout.width)
-              }
-              onPress={(e) => {
-                if (distanceSliderWidth > 0) {
-                  const newDistance = Math.round(
-                    1 +
-                      (e.nativeEvent.locationX / distanceSliderWidth) *
-                        (1000 - 1),
-                  );
-                  setDistanceMiles(newDistance);
-                }
+              onLayout={(e) => {
+                distanceSliderWidth.current = e.nativeEvent.layout.width;
+                distanceAnimX.setValue(
+                  valueToPosition(
+                    distanceRef.current,
+                    MIN_DISTANCE,
+                    MAX_DISTANCE,
+                    distanceSliderWidth.current,
+                  ),
+                );
               }}
+              onPress={handleDistanceTap}
+              activeOpacity={1}
             >
-              <View
+              <Animated.View
                 style={[
                   styles.distanceFill,
                   {
-                    width: `${((distanceMiles - 1) / (1000 - 1)) * 100}%`,
+                    width: Animated.add(
+                      distanceAnimX,
+                      new Animated.Value(thumbSize / 2),
+                    ) as any,
                   },
                 ]}
               />
-              <View
+
+              <Animated.View
+                {...distancePanResponder.panHandlers}
                 style={[
-                  styles.distanceThumb,
+                  styles.animatedThumb,
                   {
-                    left: `${((distanceMiles - 1) / (1000 - 1)) * 100}%`,
+                    transform: [{ translateX: distanceAnimX }],
                   },
                 ]}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               />
+
+              <Animated.View
+                style={[
+                  styles.ageTooltip,
+                  {
+                    transform: [
+                      {
+                        translateX: Animated.add(
+                          distanceAnimX,
+                          new Animated.Value((thumbSize - 40) / 2),
+                        ),
+                      },
+                    ],
+                  },
+                ]}
+                pointerEvents="none"
+              >
+                <Text style={styles.ageTooltipText}>{distanceMiles}</Text>
+                <View style={styles.tooltipTriangle} />
+              </Animated.View>
             </TouchableOpacity>
             <Text style={styles.small}>1000</Text>
           </View>
@@ -299,13 +773,23 @@ export default function PreferencesSetup() {
 
         {/* Relationship Type */}
         <Text style={styles.label}>Looking For</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setShowRelationshipDropdown(true)}
-        >
-          <Text style={styles.dropdownText}>{relationshipType}</Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
+        <View style={styles.dropdownContainer}>
+          <View ref={relationshipDropdownTriggerRef}>
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => {
+                if (showRelationshipDropdown) {
+                  setShowRelationshipDropdown(false);
+                  return;
+                }
+                openRelationshipDropdown();
+              }}
+            >
+              <Text style={styles.dropdownText}>{relationshipType}</Text>
+              <Text style={styles.dropdownArrow}>▼</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Location Permission */}
         <Text style={styles.label}>Location Permission</Text>
@@ -313,122 +797,114 @@ export default function PreferencesSetup() {
           <TouchableOpacity
             style={[
               styles.permissionButton,
-              locationPermission === "denied" &&
-                styles.permissionButtonSelected,
-            ]}
-            onPress={() => handleLocationPermission("deny")}
-          >
-            <Text
-              style={[
-                styles.permissionText,
-                locationPermission === "denied" &&
-                  styles.permissionTextSelected,
-              ]}
-            >
-              Don't Allow
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.permissionButton,
-              locationPermission === "once" && styles.permissionButtonSelected,
-            ]}
-            onPress={() => handleLocationPermission("once")}
-          >
-            <Text
-              style={[
-                styles.permissionText,
-                locationPermission === "once" && styles.permissionTextSelected,
-              ]}
-            >
-              Allow Once
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.permissionButton,
-              locationPermission === "while-using" &&
-                styles.permissionButtonSelected,
+              locationPermission && styles.permissionButtonSelected,
             ]}
             onPress={() => handleLocationPermission("while-using")}
           >
             <Text
               style={[
                 styles.permissionText,
-                locationPermission === "while-using" &&
-                  styles.permissionTextSelected,
+                locationPermission && styles.permissionTextSelected,
               ]}
             >
-              While Using
+              Set Location Permissions
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.permissionButton,
-              locationPermission === "always" &&
-                styles.permissionButtonSelected,
-            ]}
-            onPress={() => handleLocationPermission("always")}
-          >
-            <Text
-              style={[
-                styles.permissionText,
-                locationPermission === "always" &&
-                  styles.permissionTextSelected,
-              ]}
-            >
-              Always
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Dropdown Modal */}
-        <Modal
-          visible={showRelationshipDropdown}
-          transparent
-          animationType="fade"
-        >
-          <TouchableOpacity
-            style={styles.dropdownOverlay}
-            onPress={() => setShowRelationshipDropdown(false)}
-          >
-            <View style={styles.dropdownMenu}>
-              {relationshipOptions.map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={styles.dropdownOption}
-                  onPress={() => {
-                    setRelationshipType(option);
-                    setShowRelationshipDropdown(false);
-                  }}
-                >
-                  <Text style={styles.dropdownOptionText}>{option}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        <View style={styles.bottomRow}>
-          <View style={styles.dotsRow}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-          </View>
-
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-            <Text style={styles.nextIcon}>→</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={showRelationshipDropdown}
+        animationType="fade"
+        onRequestClose={() => setShowRelationshipDropdown(false)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowRelationshipDropdown(false)}
+        >
+          <View
+            style={[
+              styles.dropdownMenuInline,
+              {
+                left: relationshipDropdownAnchor.x,
+                top: relationshipDropdownAnchor.y,
+                width: relationshipDropdownAnchor.width,
+              },
+            ]}
+          >
+            {relationshipOptions.map((option, index) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.dropdownOption,
+                  index === relationshipOptions.length - 1 &&
+                    styles.dropdownOptionLast,
+                ]}
+                onPress={() => {
+                  setRelationshipType(option);
+                  setShowRelationshipDropdown(false);
+                }}
+              >
+                <Text style={styles.dropdownOptionText}>{option}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <View style={styles.bottomRow}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() =>
+            router.push({
+              pathname: "/screens/setup" as any,
+              params: {
+                userId: resolvedUserId,
+                firstName: readParam(firstNameParam) ?? "",
+                phone: readParam(phoneParam) ?? "",
+                age: readParam(ageParam) ?? "",
+                selectedFeet: readParam(selectedFeetParam) ?? "",
+                selectedInches: readParam(selectedInchesParam) ?? "",
+                heightLabel: readParam(heightLabelParam) ?? "",
+                interests: selectedInterests.join("|"),
+                minAge: String(minAge),
+                maxAge: String(maxAge),
+                distanceMiles: String(distanceMiles),
+                relationshipType,
+                locationPermission: locationPermission ?? "",
+                latitude: location ? String(location.latitude) : "",
+                longitude: location ? String(location.longitude) : "",
+              },
+            })
+          }
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextIcon}>→</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dotsRow}>
+          <View style={styles.dot} />
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
+      </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
-  scroll: { flex: 1 },
+  gradient: {
+    flex: 1,
+    minHeight: "100%",
+    overflow: "visible",
+  },
+  scroll: { flex: 1, overflow: "visible", zIndex: 20 },
   content: { paddingHorizontal: 24, paddingBottom: 48 },
   heading: {
     fontSize: 34,
@@ -439,26 +915,86 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 18, fontWeight: "600", marginTop: 18, color: "#111" },
   small: { fontSize: 12, color: "#111", marginTop: 6 },
-  interestsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+  interestInputWrapper: {
     marginTop: 12,
+    position: "relative",
+    zIndex: 25,
   },
-  interestTag: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+  interestInputContainer: {
+    borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.4)",
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.15)",
+    padding: 8,
+    minHeight: 52,
   },
-  interestTagSelected: {
-    backgroundColor: "#A893CE",
-    borderColor: "#7B4DE1",
+  selectedInterestsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4,
   },
-  interestText: { fontSize: 14, color: "#111", fontWeight: "500" },
-  interestTextSelected: { color: "#fff" },
+  selectedInterestTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#CBA6E8",
+    borderRadius: 8,
+    paddingLeft: 10,
+    paddingRight: 6,
+    paddingVertical: 5,
+  },
+  selectedInterestText: {
+    fontSize: 13,
+    color: "#111",
+    fontWeight: "600",
+  },
+  removeInterestButton: {
+    marginLeft: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
+  removeInterestText: {
+    color: "#111",
+    fontSize: 12,
+    lineHeight: 12,
+    fontWeight: "700",
+  },
+  interestInput: {
+    height: 32,
+    paddingHorizontal: 4,
+    color: "#111",
+    fontSize: 14,
+  },
+  interestSuggestions: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 56,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.12)",
+    overflow: "hidden",
+    zIndex: 30,
+    elevation: 7,
+  },
+  interestSuggestionItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  interestSuggestionLast: {
+    borderBottomWidth: 0,
+  },
+  interestSuggestionText: {
+    color: "#111",
+    fontSize: 14,
+  },
   ageRangeContainer: { marginTop: 12 },
   ageInputRow: {
     flexDirection: "row",
@@ -466,35 +1002,65 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   ageLabel: { fontSize: 14, fontWeight: "600", color: "#111" },
-  sliderContainer: {
+  sliderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     marginTop: 8,
   },
-  doubleSlider: { flex: 1, height: 40, justifyContent: "center" },
-  ageSliderTrack: {
-    height: 8,
+  ageSlider: {
+    flex: 1,
+    height: 12,
     backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 4,
-    position: "relative",
+    borderRadius: 8,
+    marginHorizontal: 12,
+    justifyContent: "center",
   },
-  ageSliderFill: {
+  animatedFill: {
     position: "absolute",
+    left: 0,
     height: 8,
     backgroundColor: "#E2A9DB",
-    borderRadius: 4,
+    borderRadius: 6,
   },
-  ageSliderThumb: {
+  animatedThumb: {
     position: "absolute",
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    left: 0,
+    width: 20,
+    height: 20,
     backgroundColor: "#fff",
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: "#A893CE",
-    marginLeft: -9,
-    marginTop: -5,
+    top: -4,
+  },
+  ageTooltip: {
+    position: "absolute",
+    top: -36,
+    width: 32,
+    height: 24,
+    left: 5,
+    backgroundColor: "#FBE9DE",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ageTooltipText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#111",
+  },
+  tooltipTriangle: {
+    position: "absolute",
+    bottom: -2,
+    left: 10,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#FBE9DE",
   },
   distanceContainer: { marginTop: 12 },
   distanceValue: {
@@ -505,35 +1071,29 @@ const styles = StyleSheet.create({
   },
   distanceSlider: {
     flex: 1,
-    height: 8,
+    height: 12,
     backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 4,
+    borderRadius: 8,
+    marginHorizontal: 12,
     justifyContent: "center",
-    position: "relative",
   },
   distanceFill: {
     position: "absolute",
+    left: 0,
     height: 8,
     backgroundColor: "#E2A9DB",
-    borderRadius: 4,
+    borderRadius: 6,
   },
-  distanceThumb: {
-    position: "absolute",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#A893CE",
-    marginLeft: -10,
-    marginTop: -6,
+  dropdownContainer: {
+    marginTop: 8,
+    position: "relative",
+    zIndex: 30,
   },
   dropdown: {
     height: 48,
-    borderRadius: 28,
+    borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.4)",
     paddingHorizontal: 16,
-    marginTop: 8,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.15)",
     flexDirection: "row",
@@ -542,23 +1102,27 @@ const styles = StyleSheet.create({
   },
   dropdownText: { color: "#111", fontSize: 16, fontWeight: "500" },
   dropdownArrow: { color: "#111", fontSize: 12 },
-  dropdownOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dropdownMenu: {
+  dropdownMenuInline: {
+    position: "absolute",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "80%",
-    maxHeight: 300,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.12)",
+    overflow: "hidden",
+    zIndex: 10,
+    elevation: 10,
+  },
+  dropdownModalOverlay: {
+    flex: 1,
   },
   dropdownOption: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+  },
+  dropdownOptionLast: {
+    borderBottomWidth: 0,
   },
   dropdownOptionText: { color: "#111", fontSize: 14 },
   permissionContainer: {
@@ -581,19 +1145,39 @@ const styles = StyleSheet.create({
   permissionText: { color: "#111", fontWeight: "500", fontSize: 14 },
   permissionTextSelected: { color: "#fff" },
   bottomRow: {
-    marginTop: 36,
+    position: "absolute",
+    bottom: 96,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    elevation: 100,
+  },
+  dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: "rgba(251, 233, 222, 0.5)",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
-  dotsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.71)",
+    width: 12,
+    height: 12,
+    borderRadius: 7,
+    backgroundColor: "rgba(255, 255, 255, 1)",
   },
-  dotActive: { backgroundColor: "#7B4DE1" },
+  dotActive: {
+    backgroundColor: "#A893CE",
+    width: 12,
+    height: 12,
+    borderRadius: 9,
+  },
   nextButton: {
     width: 56,
     height: 56,
@@ -601,6 +1185,37 @@ const styles = StyleSheet.create({
     backgroundColor: "#A893CE",
     alignItems: "center",
     justifyContent: "center",
+    position: "absolute",
+    right: 24,
+    top: -65,
   },
-  nextIcon: { fontSize: 24, color: "#000" },
+  backButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#A893CE",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    left: 24,
+    top: -65,
+  },
+  nextIcon: { fontSize: 24, color: "#000000" },
+  backIcon: { fontSize: 24, color: "#000000" },
+  heartTopLeft: {
+    position: "absolute",
+    top: -50,
+    left: 0,
+    width: 250,
+    height: 210,
+    zIndex: 0,
+  },
+  heartBottomRight: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 250,
+    height: 250,
+    zIndex: 0,
+  },
 });
