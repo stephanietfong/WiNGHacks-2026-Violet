@@ -5,6 +5,7 @@ import { Link } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -16,14 +17,34 @@ export default function LoginScreen() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
 
-  const handleLogin = () => {
-    if (!email.endsWith(".edu")) {
-      alert("Use a valid .edu email");
-      return;
-    }
+  async function handleLogin() {
+    try {
+      const res = await fetch(`http://${process.env.IP}:3000/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
-    console.log("Logging in:", email);
-  };
+      const data = await res.json();
+
+      if (!res.ok) {
+        Alert.alert("Error", data.message);
+        return;
+      }
+
+      // Save token
+      console.log("JWT:", data.token);
+
+      // Navigate to app
+    } catch (err: any) {
+      Alert.alert("Network error");
+    }
+  }
 
   return (
     <ThemedView style={styles.container}>
