@@ -6,16 +6,19 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import ForgotPasswordScreen from "./screens/(auth)/forgotpassword";
+import LoginScreen from "./screens/(auth)/login";
+import SignupScreen from "./screens/(auth)/signup";
+import DiscoveryPage from "./screens/(tabs)/discovery";
+import LikesPage from "./screens/(tabs)/likes";
+import MessagesPage from "./screens/(tabs)/messages";
+import ProfilePage from "./screens/(tabs)/profile";
+import AboutScreen from "./screens/about";
 import LandingScreen from "./screens/landing";
-import LoginScreen from "./screens/login";
 import SetupScreen from "./screens/setup";
 import Setup2Screen from "./screens/setup2";
 import Setup3Screen from "./screens/setup3";
-import SignupScreen from "./screens/signup";
-import DiscoveryPage from "./screens/tabs/discovery";
-import LikesPage from "./screens/tabs/likes";
-import MessagesPage from "./screens/tabs/messages";
-import ProfilePage from "./screens/tabs/profile";
+import TermsScreen from "./screens/terms";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -33,8 +36,11 @@ export default function RootLayout() {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="landing" component={LandingScreen} />
+        <Stack.Screen name="terms" component={TermsScreen} />
         <Stack.Screen name="login" component={LoginScreen} />
         <Stack.Screen name="signup" component={SignupScreen} />
+        <Stack.Screen name="forgotpassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="about" component={AboutScreen} />
         <Stack.Screen name="setup" component={SetupScreen} />
         <Stack.Screen name="setup2" component={Setup2Screen} />
         <Stack.Screen name="setup3" component={Setup3Screen} />
