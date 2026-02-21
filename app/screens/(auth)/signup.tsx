@@ -1,4 +1,7 @@
 import { AuthToggle } from "@/components/auth-toggle";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -38,7 +41,7 @@ export default function SignupScreen() {
     try {
       // 2. POST to your Node.js server
       // Replace '192.168.X.X' with your actual computer IP address
-      const response = await fetch("http://10.136.197.71:3000/signup", {
+      const response = await fetch(`http://10.136.248.36:3000/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -64,86 +67,89 @@ export default function SignupScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       <AuthToggle
         active="signup"
         onLoginPress={() => router.push("/screens/(auth)/login")}
         onSignupPress={() => {}}
       />
-      <Text style={styles.title}>Create Account</Text>
 
-      <TextInput
-        placeholder="Name"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-      />
+      <View style={styles.inputContainerAndButton}>
+        <View style={styles.inputContainer}>
+          <ThemedText type="defaultSemiBold">Email address</ThemedText>
+          <TextInput
+            placeholder="School Email (.edu)"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.inputContainer}>
+          <ThemedText type="defaultSemiBold">Password</ThemedText>
+          <TextInput
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+          />
+        </View>
+        <View style={styles.inputContainer}>
+          <ThemedText type="defaultSemiBold">Confirm Password</ThemedText>
 
-      <TextInput
-        placeholder="School Email (.edu)"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Confirm Password"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleSignup}>
-        <Text style={styles.buttonText}>Create Account</Text>
-      </TouchableOpacity>
-    </View>
+          <TextInput
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            style={styles.input}
+          />
+        </View>
+        <TouchableOpacity style={styles.button} onPress={handleSignup}>
+          <Text style={styles.buttonText}>Create Account</Text>
+        </TouchableOpacity>
+      </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: 25,
-    backgroundColor: "#fff",
+    justifyContent: "flex-start",
+    alignContent: "center",
+    padding: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#2c3e50",
+  inputContainerAndButton: {
+    flex: 1,
+    gap: 20,
   },
-  subtitle: {
-    fontSize: 16,
-    textAlign: "center",
-    color: "#7f8c8d",
-    marginBottom: 30,
+  inputContainer: {
+    gap: 10,
   },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 10,
     marginBottom: 15,
-    fontSize: 16,
+  },
+  link: {
+    textAlign: "center",
   },
   button: {
-    backgroundColor: "#8e44ad",
-    padding: 18,
-    borderRadius: 12,
+    backgroundColor: "rgba(0, 0, 0, 1)",
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 20,
+    paddingRight: 20,
+    borderRadius: 10,
     alignItems: "center",
-    marginTop: 10,
   },
-  buttonText: { color: "white", fontWeight: "bold", fontSize: 18 },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
 });
