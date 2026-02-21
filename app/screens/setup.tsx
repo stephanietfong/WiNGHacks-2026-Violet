@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
     Animated,
+    Image,
     Modal, PanResponder,
     ScrollView,
     StyleSheet,
@@ -57,7 +58,7 @@ export default function AccountSetup() {
 
   useEffect(() => {
     const id = animX.addListener(({ value }) => {
-      const usable = Math.max(0, sliderWidth.current - leftPadding * 2 - thumbSize);
+      const usable = Math.max(0, sliderWidth.current - thumbSize);
       if (usable <= 0) return;
       const ratio = value / usable;
       const newAge = Math.round(MIN_AGE + ratio * (MAX_AGE - MIN_AGE));
@@ -69,7 +70,7 @@ export default function AccountSetup() {
   useEffect(() => {
     // set initial position once slider size known
     if (sliderWidth.current > 0) {
-      const usable = Math.max(0, sliderWidth.current - leftPadding * 2 - thumbSize);
+      const usable = Math.max(0, sliderWidth.current - thumbSize);
       const initial = ((age - MIN_AGE) / (MAX_AGE - MIN_AGE)) * usable;
       animX.setValue(initial);
     }
@@ -88,7 +89,7 @@ export default function AccountSetup() {
       },
       onPanResponderMove: (_, gs) => {
         if (!panRef.current) return;
-        const usable = Math.max(0, sliderWidth.current - leftPadding * 2 - thumbSize);
+        const usable = Math.max(0, sliderWidth.current - thumbSize);
         const next = Math.min(Math.max(0, panRef.current.startX + gs.dx), usable);
         animX.setValue(next);
       },
@@ -98,12 +99,27 @@ export default function AccountSetup() {
     })
   ).current;
 
+  const handleSliderTap = (e: any) => {
+    const { locationX } = e.nativeEvent;
+    const usable = Math.max(0, sliderWidth.current - thumbSize);
+    const tapPosition = Math.min(Math.max(0, locationX - thumbSize / 2), usable);
+    animX.setValue(tapPosition);
+  };
+
   return (
     <LinearGradient
       colors={["#FE9FB8", "#FEB2AB"]}
       style={[styles.gradient, { paddingTop: insets.top }]}
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* decorative corner images (fixed, non-interactive) */}
+      <View style={styles.cornerTopRight} pointerEvents="none">
+        <Image source={require("../../assets/images/corner.png")} style={{ width: "100%", height: "100%", resizeMode: "contain" }} />
+      </View>
+      <View style={styles.squiggleBottomLeft} pointerEvents="none">
+        <Image source={require("../../assets/images/squiggle.png")} style={{ width: "100%", height: "100%", resizeMode: "contain" }} />
+      </View>
+
+      <View style={[styles.scroll, styles.content]}>
         <Text style={styles.heading}>Account Setup</Text>
 
         <Text style={styles.label}>Name</Text>
@@ -112,23 +128,22 @@ export default function AccountSetup() {
         <Text style={styles.label}>Age</Text>
         <View style={styles.sliderRow}>
           <Text style={styles.small}>{MIN_AGE}</Text>
-          <View
+          <TouchableOpacity
             style={styles.ageSlider}
             onLayout={(e) => {
               sliderWidth.current = e.nativeEvent.layout.width;
-              const usable = Math.max(0, sliderWidth.current - leftPadding * 2 - thumbSize);
+              const usable = Math.max(0, sliderWidth.current - thumbSize);
               const initial = ((age - MIN_AGE) / (MAX_AGE - MIN_AGE)) * usable;
               animX.setValue(initial);
             }}
+            onPress={handleSliderTap}
+            activeOpacity={1}
           >
             <Animated.View
               style={[
                 styles.animatedFill,
                 {
-                  width: animX.interpolate({
-                    inputRange: [0, Math.max(0, 1)],
-                    outputRange: [leftPadding + thumbSize / 2, Animated.add(animX, new Animated.Value(leftPadding + thumbSize / 2)) as any],
-                  }) as any,
+                  width: Animated.add(animX, new Animated.Value(thumbSize / 2)) as any,
                 },
               ]}
             />
@@ -147,12 +162,28 @@ export default function AccountSetup() {
               ]}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             />
-          </View>
+
+            <Animated.View
+              style={[
+                styles.ageTooltip,
+                {
+                  transform: [
+                    {
+                      translateX: Animated.add(animX, new Animated.Value((thumbSize - 40) / 2)),
+                    },
+                  ],
+                },
+              ]}
+              pointerEvents="none"
+            >
+              <Text style={styles.ageTooltipText}>{age}</Text>
+              <View style={styles.tooltipTriangle} />
+            </Animated.View>
+          </TouchableOpacity>
           <Text style={styles.small}>{MAX_AGE}</Text>
         </View>
-        <Text style={[styles.small, { marginTop: 6 }]}>Selected: {age}</Text>
 
-        <Text style={styles.label}>Height (in.)</Text>
+        <Text style={styles.label}>Height</Text>
         <TouchableOpacity
           onPress={() => {
             setShowHeightPicker(true);
@@ -277,18 +308,17 @@ export default function AccountSetup() {
         )}
 
         <View style={styles.bottomRow}>
+            <TouchableOpacity style={styles.nextButton}>
+                <Text style={styles.nextIcon}>→</Text>
+            </TouchableOpacity>
           <View style={styles.dotsRow}>
             <View style={styles.dot} />
             <View style={[styles.dot, styles.dotActive]} />
             <View style={styles.dot} />
             <View style={styles.dot} />
           </View>
-
-          <TouchableOpacity style={styles.nextButton}>
-            <Text style={styles.nextIcon}>→</Text>
-          </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
 
     </LinearGradient>
   );
@@ -301,6 +331,7 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
     minHeight: "100%",
+    overflow: "visible",
   },
   scroll: {
     flex: 1,
@@ -308,6 +339,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingBottom: 48,
+    zIndex: 1,
   },
   heading: {
     fontSize: 34,
@@ -324,12 +356,12 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 48,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    borderRadius: 12,
+    backgroundColor: "#fbe9de90",
     paddingHorizontal: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
+    borderColor: "#5b5071",
   },
   small: { fontSize: 12, color: "#111" },
   sliderRow: {
@@ -344,6 +376,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 12,
     justifyContent: "center",
+  },
+  ageTooltip: {
+    position: "absolute",
+    top: -36,
+    width: 32,
+    height: 24,
+    left: 5,
+    backgroundColor: "#FBE9DE",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ageTooltipText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#111",
+  },
+  tooltipTriangle: {
+    position: "absolute",
+    bottom: -2,
+    left: 10,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#FBE9DE",
   },
   animatedFill: {
     position: "absolute",
@@ -364,25 +425,36 @@ const styles = StyleSheet.create({
     top: -4,
   },
   bottomRow: {
-    marginTop: 36,
+    position: "absolute",
+    bottom: 36,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
   },
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: "rgba(251, 233, 222, 0.5)",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.71)",
-    marginRight: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 7,
+    backgroundColor: "rgba(255, 255, 255, 1)",
   },
   dotActive: {
-    backgroundColor: "#7B4DE1",
+    backgroundColor: "#A893CE",
+    width: 12,
+    height: 12,
+    borderRadius: 9,
   },
   nextButton: {
     width: 56,
@@ -391,28 +463,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#A893CE",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    position: "absolute",
+    right: 24,
+    top: -65,
   },
   nextIcon: { fontSize: 24, color: "#000000" },
-  avatarWrap: {
+
+  cornerTopRight: {
     position: "absolute",
-    right: 36,
-    bottom: 110,
+    top: -34,
+    right: -14,
+    width: 160,
+    height: 160,
+    zIndex: 0,
   },
-  avatarBubble: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#2b1b3d",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+  squiggleBottomLeft: {
+    position: "absolute",
+    bottom: -18,
+    left: -36,
+    width: 240,
+    height: 240,
+    zIndex: 0,
   },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",
