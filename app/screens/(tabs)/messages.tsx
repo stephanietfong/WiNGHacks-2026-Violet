@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
     color: "#222222",
   },
   scrollContent: {
-    flex: 1,
     gap: 10,
+    paddingBottom: 20,
   },
   chatRow: {
     flexDirection: "row",
