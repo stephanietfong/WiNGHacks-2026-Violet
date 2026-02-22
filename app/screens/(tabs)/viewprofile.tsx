@@ -109,6 +109,9 @@ export default function ViewProfileScreen() {
       end={{ x: 0, y: 1 }}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View
+        style={{ flexDirection: "row", alignItems: "center" }}
+        >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() =>
@@ -122,6 +125,13 @@ export default function ViewProfileScreen() {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => router.push("/screens/(tabs)/editprofile")}> 
+            <Image
+              source={require("../../../assets/images/edit-icon.png")}
+              style={{ width: 30, height: 30, marginLeft: 260, marginBottom: 7 }}
+            />
+        </TouchableOpacity>
+        </View>
         <Text style={styles.title}>Your Public Profile</Text>
 
         <View style={styles.profileCard}>

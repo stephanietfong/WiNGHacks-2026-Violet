@@ -3,6 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+import { ButtonRow } from "@/components/button-row";
 
 export default function Discovery() {
   const { userId } = useLocalSearchParams<{ userId?: string | string[] }>();

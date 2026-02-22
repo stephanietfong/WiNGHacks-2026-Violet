@@ -18,4 +18,5 @@ export type RootStackParamList = {
   bannedlist: { userId?: string } | undefined;
   communityguidelines: { userId?: string } | undefined;
   reportaccount: { userId?: string } | undefined;
+  editprofile: { userId?: string } | undefined;
 };

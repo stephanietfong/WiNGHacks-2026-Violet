@@ -24,6 +24,7 @@ import LandingScreen from "./screens/landing";
 import SetupScreen from "./screens/setup";
 import PreferencesSetup from "./screens/setup2";
 import Setup3Screen from "./screens/setup3";
+import EditProfileScreen from "./screens/(tabs)/editprofile";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -61,6 +62,7 @@ export default function RootLayout() {
           component={CommunityGuidelinesScreen}
         />
         <Stack.Screen name="reportaccount" component={ReportAccountScreen} />
+        <Stack.Screen name="editprofile" component={EditProfileScreen} />
       </Stack.Navigator>
     </ThemeProvider>
   );
