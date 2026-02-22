@@ -3,9 +3,11 @@ import cors from "cors";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import express, { Request, Response } from "express";
+import http from "http";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import path from "path";
+import { Server } from "socket.io";
 import { connectDB } from "./db";
 import Match from "./models/Match";
 import Message from "./models/Message";
@@ -16,6 +18,13 @@ dotenv.config({ path: path.resolve(__dirname, ".env") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const app = express();
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
 app.use(cors());
 app.use(express.json());
@@ -897,13 +906,36 @@ app.get("/messages/chats/:userId", async (req: Request, res: Response) => {
       messagesByMatch.get(key)?.push(message);
     }
 
-    const chats = matches.map((match) => ({
-      matchId: match._id,
-      users: match.users,
-      status: match.status,
-      matchedAt: match.matchedAt,
-      messages: messagesByMatch.get(String(match._id)) ?? [],
-    }));
+    const chats = matches
+      .map((match) => ({
+        matchId: match._id,
+        users: match.users,
+        status: match.status,
+        matchedAt: match.matchedAt,
+        messages: messagesByMatch.get(String(match._id)) ?? [],
+      }))
+      .sort((a, b) => {
+        // Get the most recent message for each chat
+        const lastMessageA = a.messages[a.messages.length - 1];
+        const lastMessageB = b.messages[b.messages.length - 1];
+
+        // If both have messages, sort by most recent
+        if (lastMessageA && lastMessageB) {
+          return (
+            new Date(lastMessageB.createdAt).getTime() -
+            new Date(lastMessageA.createdAt).getTime()
+          );
+        }
+
+        // If only one has messages, prioritize the one with messages
+        if (lastMessageA) return -1;
+        if (lastMessageB) return 1;
+
+        // If neither has messages, sort by matchedAt (if available)
+        const timeA = a.matchedAt ? new Date(a.matchedAt).getTime() : 0;
+        const timeB = b.matchedAt ? new Date(b.matchedAt).getTime() : 0;
+        return timeB - timeA;
+      });
 
     return res.status(200).json({ chats });
   } catch (err) {
@@ -964,6 +996,11 @@ app.post("/messages", async (req: Request, res: Response) => {
       read: false,
     });
 
+    // Emit new message to all clients in the match room
+    io.to(`match-${matchId}`).emit("new-message", {
+      message: newMessage,
+    });
+
     return res.status(201).json({ message: newMessage });
   } catch (err) {
     console.error("Create message failed:", err);
@@ -971,10 +1008,41 @@ app.post("/messages", async (req: Request, res: Response) => {
   }
 });
 
+// Socket.IO handlers
+io.on("connection", (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  // Join a chat room based on matchId
+  socket.on("join-match", (matchId: string) => {
+    socket.join(`match-${matchId}`);
+    console.log(`Socket ${socket.id} joined match-${matchId}`);
+  });
+
+  // Handle typing indicator
+  socket.on("typing", (matchId: string) => {
+    socket.broadcast.to(`match-${matchId}`).emit("user-typing", {
+      matchId,
+    });
+  });
+
+  // Handle stop typing
+  socket.on("stop-typing", (matchId: string) => {
+    socket.broadcast.to(`match-${matchId}`).emit("user-stopped-typing", {
+      matchId,
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id}`);
+  });
+});
+
 const startServer = async () => {
   await connectDB();
 
-  app.listen(3000, () => console.log("Server running on port 3000"));
+  httpServer.listen(3000, () => {
+    console.log("Server running on port 3000 with Socket.IO");
+  });
 };
 
 startServer().catch((error) => {
