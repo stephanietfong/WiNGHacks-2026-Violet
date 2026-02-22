@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ForgotPasswordScreen from "./screens/(auth)/forgotpassword";
 import LoginScreen from "./screens/(auth)/login";
 import SignupScreen from "./screens/(auth)/signup";
+import VerifyEmailScreen from "./screens/(auth)/verifyemail";
 import DiscoveryPage from "./screens/(tabs)/discovery";
 import LikesPage from "./screens/(tabs)/likes";
 import MessagesPage from "./screens/(tabs)/messages";
@@ -40,6 +41,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" component={LoginScreen} />
         <Stack.Screen name="signup" component={SignupScreen} />
         <Stack.Screen name="forgotpassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="verifyemail" component={VerifyEmailScreen} />
         <Stack.Screen name="about" component={AboutScreen} />
         <Stack.Screen name="setup" component={SetupScreen} />
         <Stack.Screen name="setup2" component={Setup2Screen} />

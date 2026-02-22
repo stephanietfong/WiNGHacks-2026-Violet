@@ -3,6 +3,7 @@ export type RootStackParamList = {
   terms: undefined;
   login: undefined;
   signup: undefined;
+  verifyemail: undefined;
   setup: { userId: string };
   setup2: { userId: string };
   setup3: { userId: string };
