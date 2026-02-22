@@ -5,12 +5,12 @@ import { Link } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const API_BASE_URL =
@@ -49,8 +49,11 @@ export default function LoginScreen() {
       // Save token
       console.log("JWT:", data.token);
 
-      // Navigate to discovery
-      router.replace("/screens/(tabs)/discovery");
+      // Navigate to discovery with current user context
+      router.replace({
+        pathname: "/screens/(tabs)/discovery",
+        params: { userId: data.userId },
+      });
     } catch (err: any) {
       Alert.alert("Network error");
     }

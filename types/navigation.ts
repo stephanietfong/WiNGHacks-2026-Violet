@@ -9,8 +9,13 @@ export type RootStackParamList = {
   setup3: { userId: string };
   forgotpassword: undefined;
   about: undefined;
-  discovery: undefined;
-  likes: undefined;
-  messages: undefined;
-  profile: undefined;
+  discovery: { userId?: string } | undefined;
+  likes: { userId?: string } | undefined;
+  messages: { userId?: string } | undefined;
+  profile: { userId?: string } | undefined;
+  settings: { userId?: string } | undefined;
+  viewprofile: { userId?: string } | undefined;
+  bannedlist: { userId?: string } | undefined;
+  communityguidelines: { userId?: string } | undefined;
+  reportaccount: { userId?: string } | undefined;
 };

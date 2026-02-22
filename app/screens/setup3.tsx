@@ -20,7 +20,9 @@ const API_BASE_URL =
 export interface PhotoData {
   uri: string;
   url?: string;
+  publicId?: string;
   isVerificationPhoto: boolean;
+  sourceTag?: string;
 }
 
 export default function PhotoSetup() {
@@ -42,6 +44,9 @@ export default function PhotoSetup() {
     latitude,
     longitude,
     photos: photosParam,
+    idCaptureUri,
+    idPhotoKept,
+    idPhotoUploaded,
   } = useLocalSearchParams();
 
   const readParam = (value: string | string[] | undefined) =>
@@ -68,7 +73,11 @@ export default function PhotoSetup() {
         .map((item) => ({
           uri: item.uri,
           url: typeof item.url === "string" ? item.url : undefined,
+          publicId:
+            typeof item.publicId === "string" ? item.publicId : undefined,
           isVerificationPhoto: item.isVerificationPhoto,
+          sourceTag:
+            typeof item.sourceTag === "string" ? item.sourceTag : "profile",
         }));
     } catch {
       return [];
@@ -106,6 +115,9 @@ export default function PhotoSetup() {
       latitude: readParam(latitude) ?? "",
       longitude: readParam(longitude) ?? "",
       photos: serializedPhotos,
+      idCaptureUri: readParam(idCaptureUri) ?? "",
+      idPhotoKept: readParam(idPhotoKept) ?? "0",
+      idPhotoUploaded: readParam(idPhotoUploaded) ?? "0",
     });
   }, [
     age,
@@ -120,6 +132,9 @@ export default function PhotoSetup() {
     minAge,
     phone,
     photos,
+    idCaptureUri,
+    idPhotoKept,
+    idPhotoUploaded,
     relationshipType,
     resolvedUserId,
     router,
@@ -149,6 +164,7 @@ export default function PhotoSetup() {
         const newPhoto: PhotoData = {
           uri: result.assets[0].uri,
           isVerificationPhoto: photos.length === 0, // First photo is verification photo
+          sourceTag: "profile",
         };
         setPhotos([...photos, newPhoto]);
       }
@@ -219,12 +235,54 @@ export default function PhotoSetup() {
     if (photo.isVerificationPhoto) {
       setDeleteConfirmIndex(index);
     } else {
-      removePhoto(index);
+      void removePhoto(index);
     }
   };
 
   // Remove photo
-  const removePhoto = (index: number) => {
+  const removePhoto = async (index: number) => {
+    const photoToRemove = photos[index];
+    if (!photoToRemove) return;
+
+    if (photoToRemove.url && resolvedUserId) {
+      try {
+        const photosResponse = await fetch(
+          `${API_BASE_URL}/users/${resolvedUserId}/photos`,
+        );
+
+        if (!photosResponse.ok) {
+          throw new Error("Failed to load photos");
+        }
+
+        const backendPhotos = await photosResponse.json();
+        if (!Array.isArray(backendPhotos)) {
+          throw new Error("Invalid photos payload");
+        }
+
+        const backendIndex = backendPhotos.findIndex(
+          (photo) => photo?.url === photoToRemove.url,
+        );
+
+        if (backendIndex >= 0) {
+          const deleteResponse = await fetch(
+            `${API_BASE_URL}/users/${resolvedUserId}/photos/${backendIndex}`,
+            { method: "DELETE" },
+          );
+
+          if (!deleteResponse.ok) {
+            const deleteData = await deleteResponse.json().catch(() => null);
+            throw new Error(deleteData?.message || "Failed to delete photo");
+          }
+        }
+      } catch {
+        Alert.alert(
+          "Delete Error",
+          "Could not delete this photo from your account. Please try again.",
+        );
+        return;
+      }
+    }
+
     const newPhotos = photos.filter((_, i) => i !== index);
     // Ensure first photo is always verification photo
     if (newPhotos.length > 0) {
@@ -261,20 +319,35 @@ export default function PhotoSetup() {
     setUploading(true);
 
     try {
-      // Upload all photos to Cloudinary
-      const uploadedPhotos = await Promise.all(
+      const newPhotosCount = photos.filter((photo) => !photo.url).length;
+
+      const photosWithUrls = await Promise.all(
         photos.map(async (photo) => {
+          if (photo.url) {
+            return photo;
+          }
+
           const { url, publicId } = await uploadToCloudinary(
             photo,
             resolvedUserId,
           );
+
           return {
+            ...photo,
             url,
             publicId,
             isVerificationPhoto: photo.isVerificationPhoto,
+            sourceTag: photo.sourceTag ?? "profile",
           };
         }),
       );
+
+      const payloadPhotos = photosWithUrls.map((photo) => ({
+        url: photo.url,
+        publicId: photo.publicId,
+        isVerificationPhoto: photo.isVerificationPhoto,
+        sourceTag: photo.sourceTag ?? "profile",
+      }));
 
       // Save to backend
       const response = await fetch(
@@ -282,42 +355,54 @@ export default function PhotoSetup() {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ photos: uploadedPhotos }),
+          body: JSON.stringify({ photos: payloadPhotos }),
         },
       );
 
       const data = await response.json();
 
       if (response.ok) {
+        setPhotos(photosWithUrls);
+
+        const navigateToSetup4 = () => {
+          router.push({
+            pathname: "/screens/setup4" as any,
+            params: {
+              userId: resolvedUserId,
+              firstName: readParam(firstName) ?? "",
+              phone: readParam(phone) ?? "",
+              age: readParam(age) ?? "",
+              selectedFeet: readParam(selectedFeet) ?? "",
+              selectedInches: readParam(selectedInches) ?? "",
+              heightLabel: readParam(heightLabel) ?? "",
+              interests: readParam(interests) ?? "",
+              minAge: readParam(minAge) ?? "",
+              maxAge: readParam(maxAge) ?? "",
+              distanceMiles: readParam(distanceMiles) ?? "",
+              relationshipType: readParam(relationshipType) ?? "",
+              locationPermission: readParam(locationPermission) ?? "",
+              latitude: readParam(latitude) ?? "",
+              longitude: readParam(longitude) ?? "",
+              photos:
+                photosWithUrls.length > 0
+                  ? encodeURIComponent(JSON.stringify(photosWithUrls))
+                  : "",
+              idCaptureUri: readParam(idCaptureUri) ?? "",
+              idPhotoKept: readParam(idPhotoKept) ?? "0",
+              idPhotoUploaded: readParam(idPhotoUploaded) ?? "0",
+            },
+          });
+        };
+
+        if (newPhotosCount === 0) {
+          navigateToSetup4();
+          return;
+        }
+
         Alert.alert("Success", "Photos uploaded!", [
           {
             text: "OK",
-            onPress: () => {
-              router.push({
-                pathname: "/screens/(tabs)/discovery" as any,
-                params: {
-                  userId: resolvedUserId,
-                  firstName: readParam(firstName) ?? "",
-                  phone: readParam(phone) ?? "",
-                  age: readParam(age) ?? "",
-                  selectedFeet: readParam(selectedFeet) ?? "",
-                  selectedInches: readParam(selectedInches) ?? "",
-                  heightLabel: readParam(heightLabel) ?? "",
-                  interests: readParam(interests) ?? "",
-                  minAge: readParam(minAge) ?? "",
-                  maxAge: readParam(maxAge) ?? "",
-                  distanceMiles: readParam(distanceMiles) ?? "",
-                  relationshipType: readParam(relationshipType) ?? "",
-                  locationPermission: readParam(locationPermission) ?? "",
-                  latitude: readParam(latitude) ?? "",
-                  longitude: readParam(longitude) ?? "",
-                  photos:
-                    photos.length > 0
-                      ? encodeURIComponent(JSON.stringify(photos))
-                      : "",
-                },
-              });
-            },
+            onPress: navigateToSetup4,
           },
         ]);
       } else {
@@ -412,7 +497,7 @@ export default function PhotoSetup() {
                   style={styles.confirmDeleteButton}
                   onPress={() =>
                     deleteConfirmIndex !== null &&
-                    removePhoto(deleteConfirmIndex)
+                    void removePhoto(deleteConfirmIndex)
                   }
                 >
                   <Text style={styles.confirmDeleteText}>Delete</Text>
@@ -449,6 +534,9 @@ export default function PhotoSetup() {
                   photos.length > 0
                     ? encodeURIComponent(JSON.stringify(photos))
                     : "",
+                idCaptureUri: readParam(idCaptureUri) ?? "",
+                idPhotoKept: readParam(idPhotoKept) ?? "0",
+                idPhotoUploaded: readParam(idPhotoUploaded) ?? "0",
               },
             })
           }

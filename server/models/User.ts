@@ -12,7 +12,12 @@ export interface IUser extends Document {
     heightInches?: number;
     phone?: string;
     pronouns?: string;
-    photos: { url: string; publicId: string; isVerificationPhoto: boolean }[];
+    photos: {
+      url: string;
+      publicId?: string;
+      isVerificationPhoto: boolean;
+      sourceTag?: string;
+    }[];
     bannedWords: string[];
   };
   interests?: string[];
@@ -41,16 +46,34 @@ const UserSchema: Schema = new Schema({
     heightInches: Number,
     phone: String,
     pronouns: String,
-    photos: [{ url: String, publicId: String, isVerificationPhoto: Boolean }],
+    photos: [
+      {
+        url: String,
+        publicId: String,
+        isVerificationPhoto: Boolean,
+        sourceTag: String,
+      },
+    ],
     // Pre-fill with your community safety words
     bannedWords: {
       type: [String],
       default: [
         "unicorn",
+        "unic0rn",
+        "uñicorn",
+        "uñic0rn",
         "throuple",
+        "thr0uple",
         "threesome",
         "pineapple",
+        "pine4pple",
+        "p1neapple",
+        "p1ne4pple",
         "looking for a third",
+        "couple",
+        "c0uple",
+        "cöuple",
+        "cöup1e",
       ],
     },
   },
