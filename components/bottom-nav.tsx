@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -45,6 +45,7 @@ const tabs: Array<{
 
 export function BottomNav({ activeTab, userId }: BottomNavProps) {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
 
   return (
@@ -58,7 +59,7 @@ export function BottomNav({ activeTab, userId }: BottomNavProps) {
               if (tab.key !== activeTab) {
                 router.replace({
                   pathname: tab.route,
-                  params: userId ? { userId } : undefined,
+                  params,
                 } as any);
               }
             }}

@@ -1,13 +1,19 @@
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import { randomUUID } from "crypto";
+import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
+import path from "path";
 import { connectDB } from "./db";
 import Match from "./models/Match";
 import Message from "./models/Message";
 import User from "./models/User";
+
+dotenv.config({ path: path.resolve(process.cwd(), "server/.env") });
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const app = express();
 
@@ -240,6 +246,10 @@ app.put("/setup/page-3/:userId", async (req: Request, res: Response) => {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const normalizedPhotos = photos.map((photo: any) => {
       const rawUrl = typeof photo?.url === "string" ? photo.url.trim() : "";
+      const rawPublicId =
+        typeof photo?.publicId === "string" ? photo.publicId.trim() : "";
+      const rawSourceTag =
+        typeof photo?.sourceTag === "string" ? photo.sourceTag.trim() : "";
       const url =
         rawUrl && !rawUrl.startsWith("http") && cloudName
           ? `https://res.cloudinary.com/${cloudName}/image/upload/${rawUrl}`
@@ -247,7 +257,9 @@ app.put("/setup/page-3/:userId", async (req: Request, res: Response) => {
 
       return {
         url,
+        publicId: rawPublicId || undefined,
         isVerificationPhoto: Boolean(photo?.isVerificationPhoto),
+        sourceTag: rawSourceTag || undefined,
       };
     });
 
@@ -368,39 +380,177 @@ app.get("/users/:userId/photos", async (req: Request, res: Response) => {
   }
 });
 
-// --- GET USER NAME + FIRST PHOTO ---
-app.get("/users/:userId/summary", async (req: Request, res: Response) => {
-  const { userId } = req.params as { userId?: string };
-
-  if (!userId) {
-    return res.status(400).json({ message: "userId is required" });
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ message: "Invalid userId" });
-  }
+// --- GET USER PROFILE (READ-ONLY) ---
+app.get("/users/:userId/profile", async (req: Request, res: Response) => {
+  const { userId } = req.params;
 
   try {
-    const user = await User.findById(userId)
-      .select("profile.firstName profile.photos")
-      .lean();
+    const user = await User.findById(userId).lean();
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const firstPhoto = user.profile?.photos?.[0]?.url ?? null;
-
     return res.status(200).json({
-      userId,
-      firstName: user.profile?.firstName ?? null,
-      firstPhoto,
+      userId: user._id,
+      email: user.email,
+      profile: user.profile ?? {},
+      interests: user.interests ?? [],
+      preferences: user.preferences ?? {},
+      location: user.location ?? null,
+      locationPermission: user.locationPermission ?? null,
     });
   } catch (err) {
-    console.error("Error getting user summary:", err);
-    return res.status(500).json({ message: "Error retrieving user summary" });
+    return res.status(500).json({ message: "Error retrieving user profile" });
   }
 });
+
+// --- UPDATE USER PREFERENCE AGE RANGE ---
+app.patch(
+  "/users/:userId/preferences/age-range",
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const minAge = Number(req.body?.minAge);
+    const maxAge = Number(req.body?.maxAge);
+
+    if (!Number.isFinite(minAge) || !Number.isFinite(maxAge)) {
+      return res
+        .status(400)
+        .json({ message: "minAge and maxAge are required" });
+    }
+
+    if (minAge < 18 || maxAge > 100 || minAge > maxAge) {
+      return res.status(400).json({
+        message: "Age range must be between 18 and 100, and minAge <= maxAge",
+      });
+    }
+
+    try {
+      const updated = await User.findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            "preferences.minAge": minAge,
+            "preferences.maxAge": maxAge,
+          },
+        },
+        { new: true },
+      ).lean();
+
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json({
+        message: "Age range updated",
+        preferences: updated.preferences ?? {},
+      });
+    } catch (err) {
+      return res.status(500).json({ message: "Error updating age range" });
+    }
+  },
+);
+
+// --- UPDATE USER PREFERENCE DISTANCE ---
+app.patch(
+  "/users/:userId/preferences/distance",
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const distanceMiles = Number(req.body?.distanceMiles);
+
+    if (!Number.isFinite(distanceMiles)) {
+      return res.status(400).json({ message: "distanceMiles is required" });
+    }
+
+    if (distanceMiles < 1 || distanceMiles > 1000) {
+      return res
+        .status(400)
+        .json({ message: "distanceMiles must be between 1 and 1000" });
+    }
+
+    try {
+      const updated = await User.findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            "preferences.distanceMiles": distanceMiles,
+          },
+        },
+        { new: true },
+      ).lean();
+
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json({
+        message: "Distance updated",
+        preferences: updated.preferences ?? {},
+      });
+    } catch (err) {
+      return res.status(500).json({ message: "Error updating distance" });
+    }
+  },
+);
+
+// --- UPDATE USER PROFILE BANNED WORDS ---
+app.patch(
+  "/users/:userId/profile/banned-words",
+  async (req: Request, res: Response) => {
+    const defaultBannedWords = [
+      "unicorn",
+      "throuple",
+      "threesome",
+      "pineapple",
+      "looking for a third",
+    ];
+
+    const { userId } = req.params;
+    const inputWords = req.body?.bannedWords;
+
+    if (!Array.isArray(inputWords)) {
+      return res.status(400).json({ message: "bannedWords must be an array" });
+    }
+
+    const customWords = Array.from(
+      new Set(
+        inputWords
+          .map((word) =>
+            typeof word === "string" ? word.trim().toLowerCase() : "",
+          )
+          .filter(
+            (word) => Boolean(word) && !defaultBannedWords.includes(word),
+          ),
+      ),
+    ).slice(0, 50);
+
+    const normalizedWords = [...defaultBannedWords, ...customWords];
+
+    try {
+      const updated = await User.findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            "profile.bannedWords": normalizedWords,
+          },
+        },
+        { new: true },
+      ).lean();
+
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json({
+        message: "Banned words updated",
+        bannedWords: updated.profile?.bannedWords ?? [],
+        customBannedWords: customWords,
+      });
+    } catch (err) {
+      return res.status(500).json({ message: "Error updating banned words" });
+    }
+  },
+);
 
 // --- GET INTERESTS LIST ---
 app.get("/interests", (req: Request, res: Response) => {

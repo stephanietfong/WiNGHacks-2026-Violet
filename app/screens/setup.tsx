@@ -2,18 +2,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Image,
-  Modal,
-  PanResponder,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Image,
+    Modal,
+    PanResponder,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 const API_BASE_URL =
@@ -39,6 +39,10 @@ export default function AccountSetup() {
     locationPermission: locationPermissionParam,
     latitude: latitudeParam,
     longitude: longitudeParam,
+    photos: photosParam,
+    idCaptureUri: idCaptureUriParam,
+    idPhotoKept: idPhotoKeptParam,
+    idPhotoUploaded: idPhotoUploadedParam,
   } = useLocalSearchParams();
 
   const readParam = (value: string | string[] | undefined) =>
@@ -167,6 +171,10 @@ export default function AccountSetup() {
             locationPermission: readParam(locationPermissionParam) ?? "",
             latitude: readParam(latitudeParam) ?? "",
             longitude: readParam(longitudeParam) ?? "",
+            photos: readParam(photosParam) ?? "",
+            idCaptureUri: readParam(idCaptureUriParam) ?? "",
+            idPhotoKept: readParam(idPhotoKeptParam) ?? "0",
+            idPhotoUploaded: readParam(idPhotoUploadedParam) ?? "0",
           },
         });
       } else {

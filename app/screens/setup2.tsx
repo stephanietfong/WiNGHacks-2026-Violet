@@ -3,17 +3,17 @@ import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Image,
-  Modal,
-  PanResponder,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Image,
+    Modal,
+    PanResponder,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const API_BASE_URL =
@@ -43,6 +43,9 @@ export default function PreferencesSetup() {
     latitude: latitudeParam,
     longitude: longitudeParam,
     photos: photosParam,
+    idCaptureUri: idCaptureUriParam,
+    idPhotoKept: idPhotoKeptParam,
+    idPhotoUploaded: idPhotoUploadedParam,
   } = useLocalSearchParams();
 
   const readParam = (value: string | string[] | undefined) =>
@@ -517,6 +520,9 @@ export default function PreferencesSetup() {
             latitude: location ? String(location.latitude) : "",
             longitude: location ? String(location.longitude) : "",
             photos: readParam(photosParam) ?? "",
+            idCaptureUri: readParam(idCaptureUriParam) ?? "",
+            idPhotoKept: readParam(idPhotoKeptParam) ?? "0",
+            idPhotoUploaded: readParam(idPhotoUploadedParam) ?? "0",
           },
         });
       } else {
@@ -888,6 +894,10 @@ export default function PreferencesSetup() {
                 locationPermission: locationPermission ?? "",
                 latitude: location ? String(location.latitude) : "",
                 longitude: location ? String(location.longitude) : "",
+                photos: readParam(photosParam) ?? "",
+                idCaptureUri: readParam(idCaptureUriParam) ?? "",
+                idPhotoKept: readParam(idPhotoKeptParam) ?? "0",
+                idPhotoUploaded: readParam(idPhotoUploadedParam) ?? "0",
               },
             })
           }
