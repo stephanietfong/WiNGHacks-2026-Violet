@@ -16,6 +16,7 @@ import ReportAccountScreen from "./screens/(info)/reportaccount";
 import DiscoveryPage from "./screens/(tabs)/discovery";
 import LikesPage from "./screens/(tabs)/likes";
 import MessagesPage from "./screens/(tabs)/messages";
+import ChatPage from "./screens/(tabs)/chat";
 import ProfilePage from "./screens/(tabs)/profile";
 import SettingsPage from "./screens/(tabs)/settings-page";
 import ViewProfileScreen from "./screens/(tabs)/viewprofile";
@@ -54,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="discovery" component={DiscoveryPage} />
         <Stack.Screen name="likes" component={LikesPage} />
         <Stack.Screen name="messages" component={MessagesPage} />
+        <Stack.Screen name="chat" component={ChatPage} />
         <Stack.Screen name="profile" component={ProfilePage} />
         <Stack.Screen name="settings" component={SettingsPage} />
         <Stack.Screen name="viewprofile" component={ViewProfileScreen} />

@@ -12,6 +12,7 @@ export type RootStackParamList = {
   discovery: { userId?: string } | undefined;
   likes: { userId?: string } | undefined;
   messages: { userId?: string } | undefined;
+  chat: { matchId?: string; userId?: string } | undefined;
   profile: { userId?: string } | undefined;
   settings: { userId?: string } | undefined;
   viewprofile: { userId?: string } | undefined;
