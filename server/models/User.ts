@@ -85,7 +85,7 @@ const UserSchema: Schema = new Schema({
     relationshipType: String,
   },
   location: {
-    type: { type: String, enum: ["Point"], default: "Point" },
+    type: { type: String, enum: ["Point"] },
     coordinates: { type: [Number], index: "2dsphere" }, // Essential for radius search
   },
   locationPermission: String,
