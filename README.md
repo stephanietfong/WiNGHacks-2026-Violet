@@ -1,50 +1,76 @@
-# Welcome to your Expo app 👋
+# Violet (WiNGHacks 2026)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Violet is an Expo + React Native app with an Express/MongoDB backend for authentication, onboarding, profiles, matching, and messaging.
 
-## Get started
+## Stack
 
-1. Install dependencies
+- **Frontend:** Expo Router, React Native, TypeScript
+- **Backend:** Express, Socket.IO, Mongoose
+- **Services:** MongoDB, Cloudinary, Gmail SMTP (via Nodemailer)
 
-   ```bash
-   npm install
-   ```
+## Project Structure
 
-2. Start the app
+- `app/` - Expo Router screens and navigation
+- `components/` - shared UI components
+- `hooks/` - custom hooks (including `use-socket`)
+- `server/` - backend API and Socket.IO server
+- `utils/` - shared helpers/services
 
-   ```bash
-   npx expo start
-   ```
+## Prerequisites
 
-In the output, you'll find options to open the app in a
+- Node.js 18+
+- npm
+- MongoDB connection string
+- (Optional) Cloudinary account for image uploads
+- (Optional) Gmail app password for email verification
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 1) Install dependencies
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+From the repository root:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Install backend-local dependencies too (inside `server/`):
 
-## Learn more
+```bash
+cd server
+npm install
+cd ..
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## 2) Configure environment variables
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Create `server/.env`:
 
-## Join the community
+```env
+MONGO_URI=your_mongodb_uri
+MONGO_DB_NAME=violet
 
-Join our community of developers creating universal apps.
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_gmail_app_password
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+Create root `.env` (for Expo app):
+
+```env
+EXPO_PUBLIC_API_URL=http://yourIP:3000
+```
+
+## 3) Run the backend (port 3000)
+cd server
+npx tsx index.ts
+
+## 4) Run the frontend
+npx expo start -c
+
+## Notes for local device testing
+
+- `localhost` only works on the same machine as the backend.
+- For physical phones, set `EXPO_PUBLIC_API_URL` to your PC LAN URL (for example `http://192.168.x.x:3000`) and ensure phone + PC are on the same network.
+- Backend CORS is currently open (`origin: "*"`) for local development.
