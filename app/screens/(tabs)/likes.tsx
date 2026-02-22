@@ -1,18 +1,174 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+type Photo = {
+  url: string;
+};
+
+type LikeProfile = {
+  userId: string;
+  profile?: {
+    firstName?: string;
+    age?: number;
+    pronouns?: string;
+    heightInches?: number;
+    photos?: Photo[];
+  };
+  interests?: string[];
+  preferences?: {
+    relationshipType?: string;
+  };
+};
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
+
+const API_FALLBACK_URLS = Array.from(
+  new Set(
+    [
+      API_BASE_URL,
+      process.env.IP ? `http://${process.env.IP}:3000` : null,
+      "http://localhost:3000",
+    ].filter((value): value is string => Boolean(value)),
+  ),
+);
+
+const formatHeight = (inches?: number) => {
+  if (!inches || inches <= 0) return "Not set";
+  const feet = Math.floor(inches / 12);
+  const remainingInches = inches % 12;
+  return `${feet}' ${remainingInches}\"`;
+};
 
 export default function LikesPage() {
   const { userId } = useLocalSearchParams<{ userId?: string | string[] }>();
   const resolvedUserId = Array.isArray(userId) ? userId[0] : userId;
 
+  const [loading, setLoading] = useState(false);
+  const [likes, setLikes] = useState<LikeProfile[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLikes = async () => {
+      if (!resolvedUserId) return;
+
+      setLoading(true);
+      setLoadError(null);
+      try {
+        for (const baseUrl of API_FALLBACK_URLS) {
+          let response: Response;
+          try {
+            response = await fetch(`${baseUrl}/likes/${resolvedUserId}/incoming`);
+          } catch {
+            continue;
+          }
+
+          if (!response.ok) {
+            continue;
+          }
+
+          const data = await response.json();
+          setLikes(Array.isArray(data?.likes) ? data.likes : []);
+          return;
+        }
+
+        setLikes([]);
+        setLoadError("Could not load incoming likes from server.");
+      } catch {
+        setLikes([]);
+        setLoadError("Could not load incoming likes from server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLikes();
+  }, [resolvedUserId]);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text>This is the Likes Page</Text>
-      </View>
+    <LinearGradient
+      colors={["#FE9FB8", "#FFC198"]}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+    >
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Likes</Text>
+
+        {loading ? (
+          <View style={styles.stateBox}>
+            <ActivityIndicator color="#333" />
+            <Text style={styles.stateText}>Loading likes...</Text>
+          </View>
+        ) : likes.length === 0 ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.stateText}>{loadError || "No likes yet."}</Text>
+          </View>
+        ) : (
+          likes.map((likedUser) => {
+            const coverPhoto = likedUser.profile?.photos?.[0]?.url;
+
+            return (
+              <View key={likedUser.userId} style={styles.profileCard}>
+                {coverPhoto ? (
+                  <Image source={{ uri: coverPhoto }} style={styles.coverPhoto} />
+                ) : (
+                  <View style={styles.coverPlaceholder}>
+                    <Text style={styles.placeholderText}>No profile photo yet</Text>
+                  </View>
+                )}
+
+                <View style={styles.section}>
+                  <Text style={styles.name}>
+                    {likedUser.profile?.firstName || "Unknown"}
+                    {likedUser.profile?.age ? `, ${likedUser.profile.age}` : ""}
+                  </Text>
+                  {!!likedUser.profile?.pronouns && (
+                    <Text style={styles.subText}>{likedUser.profile.pronouns}</Text>
+                  )}
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>About</Text>
+                  <Text style={styles.fieldLine}>
+                    Height: {formatHeight(likedUser.profile?.heightInches)}
+                  </Text>
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Interests</Text>
+                  <Text style={styles.fieldLine}>
+                    {likedUser.interests?.length
+                      ? likedUser.interests.join(" • ")
+                      : "No interests selected"}
+                  </Text>
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Preferences</Text>
+                  <Text style={styles.fieldLine}>
+                    Looking for: {likedUser.preferences?.relationshipType || "Not set"}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+
       <BottomNav activeTab="likes" userId={resolvedUserId} />
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -21,9 +177,75 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 34,
     paddingBottom: 120,
+    gap: 12,
+  },
+  title: {
+    fontSize: 35,
+    fontWeight: "700",
+    color: "#222",
+  },
+  stateBox: {
+    width: "100%",
+    minHeight: 220,
+    borderRadius: 18,
+    backgroundColor: "rgba(251, 233, 222, 0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  stateText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  profileCard: {
+    borderRadius: 18,
+    backgroundColor: "rgba(251, 233, 222, 0.65)",
+    overflow: "hidden",
+  },
+  coverPhoto: {
+    width: "100%",
+    height: 360,
+  },
+  coverPlaceholder: {
+    width: "100%",
+    height: 300,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f3dfd1",
+  },
+  placeholderText: {
+    color: "#555",
+    fontWeight: "500",
+  },
+  section: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.08)",
+  },
+  name: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  subText: {
+    marginTop: 2,
+    fontSize: 17,
+    color: "#444",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 6,
+    color: "#1a1a1a",
+  },
+  fieldLine: {
+    fontSize: 16,
+    color: "#2e2e2e",
+    lineHeight: 24,
   },
 });
