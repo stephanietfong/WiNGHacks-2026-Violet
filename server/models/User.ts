@@ -85,10 +85,21 @@ const UserSchema: Schema = new Schema({
     relationshipType: String,
   },
   location: {
-    type: { type: String, enum: ["Point"], default: "Point" },
-    coordinates: { type: [Number], index: "2dsphere" }, // Essential for radius search
+    type: { type: String, enum: ["Point"] },
+    coordinates: {
+      type: [Number],
+      validate: {
+        validator: (value: number[] | undefined) => {
+          if (!value) return true;
+          return value.length === 2;
+        },
+        message: "Location coordinates must contain [longitude, latitude]",
+      },
+    }, // Essential for radius search
   },
   locationPermission: String,
 });
+
+UserSchema.index({ location: "2dsphere" });
 
 export default mongoose.model<IUser>("User", UserSchema);
