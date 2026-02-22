@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useSocket } from "@/hooks/use-socket";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -41,6 +42,7 @@ type UserSummary = {
 };
 
 export default function ChatPage() {
+  const socket = useSocket();
   const { matchId, userId, otherUserId } = useLocalSearchParams<{
     matchId?: string | string[];
     userId?: string | string[];
@@ -58,6 +60,7 @@ export default function ChatPage() {
   const [otherUserName, setOtherUserName] = useState<string>("Chat");
   const [draftMessage, setDraftMessage] = useState<string>("");
 
+  // Fetch messages and set up socket listeners
   useEffect(() => {
     async function fetchMessages() {
       if (!resolvedMatchId?.trim()) {
@@ -118,7 +121,29 @@ export default function ChatPage() {
     }
 
     fetchMessages();
-  }, [resolvedMatchId, resolvedUserId, resolvedOtherUserId]);
+
+    // Join the match room when component mounts
+    if (socket && resolvedMatchId) {
+      socket.emit("join-match", resolvedMatchId);
+      console.log(`Joined match room: ${resolvedMatchId}`);
+    }
+
+    // Listen for new messages from other users
+    const handleNewMessage = (data: { message: ChatMessage }) => {
+      console.log("Received new message via socket:", data.message);
+      setMessages((prev) => [...prev, data.message]);
+    };
+
+    if (socket) {
+      socket.on("new-message", handleNewMessage);
+    }
+
+    return () => {
+      if (socket) {
+        socket.off("new-message", handleNewMessage);
+      }
+    };
+  }, [resolvedMatchId, resolvedUserId, resolvedOtherUserId, socket]);
 
   const handleSendMessage = async () => {
     if (!resolvedMatchId || !resolvedUserId || isSending) return;
