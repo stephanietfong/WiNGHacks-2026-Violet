@@ -294,7 +294,7 @@ export default function PhotoSetup() {
             text: "OK",
             onPress: () => {
               router.push({
-                pathname: "/screens/setup4" as any,
+                pathname: "/screens/(tabs)/discovery" as any,
                 params: {
                   userId: resolvedUserId,
                   firstName: readParam(firstName) ?? "",

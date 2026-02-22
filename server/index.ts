@@ -97,6 +97,7 @@ app.post("/verifyemail/:userId", async (req: Request, res: Response) => {
       return res.json({
         success: true,
         message: "Email already verified",
+        userId: user._id,
       });
     }
 
@@ -127,6 +128,7 @@ app.post("/verifyemail/:userId", async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: "Email verified successfully",
+      userId: user._id,
     });
   } catch (err) {
     console.error("Verify Email Error:", err);
