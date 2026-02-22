@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import express from "express";
 import jwt from "jsonwebtoken";
-import { User } from "../models/User";
+import User from "../models/User";
 
 const router = express.Router();
 
@@ -31,6 +31,10 @@ router.post("/login", async (req, res) => {
   const user = await User.findOne({ email });
 
   if (!user) {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
+
+  if (!user.password) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 

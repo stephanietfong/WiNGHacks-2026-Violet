@@ -10,10 +10,15 @@ import ForgotPasswordScreen from "./screens/(auth)/forgotpassword";
 import LoginScreen from "./screens/(auth)/login";
 import SignupScreen from "./screens/(auth)/signup";
 import VerifyEmailScreen from "./screens/(auth)/verifyemail";
+import BannedListScreen from "./screens/(info)/bannedlist";
+import CommunityGuidelinesScreen from "./screens/(info)/communityguidelines";
+import ReportAccountScreen from "./screens/(info)/reportaccount";
 import DiscoveryPage from "./screens/(tabs)/discovery";
 import LikesPage from "./screens/(tabs)/likes";
 import MessagesPage from "./screens/(tabs)/messages";
 import ProfilePage from "./screens/(tabs)/profile";
+import SettingsPage from "./screens/(tabs)/settings-page";
+import ViewProfileScreen from "./screens/(tabs)/viewprofile";
 import AboutScreen from "./screens/about";
 import LandingScreen from "./screens/landing";
 import SetupScreen from "./screens/setup";
@@ -48,6 +53,14 @@ export default function RootLayout() {
         <Stack.Screen name="likes" component={LikesPage} />
         <Stack.Screen name="messages" component={MessagesPage} />
         <Stack.Screen name="profile" component={ProfilePage} />
+        <Stack.Screen name="settings" component={SettingsPage} />
+        <Stack.Screen name="viewprofile" component={ViewProfileScreen} />
+        <Stack.Screen name="bannedlist" component={BannedListScreen} />
+        <Stack.Screen
+          name="communityguidelines"
+          component={CommunityGuidelinesScreen}
+        />
+        <Stack.Screen name="reportaccount" component={ReportAccountScreen} />
       </Stack.Navigator>
     </ThemeProvider>
   );
