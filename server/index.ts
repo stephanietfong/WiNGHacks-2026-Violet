@@ -12,11 +12,12 @@ app.use(cors());
 app.use(express.json());
 connectDB();
 
+// SIGN-UP
 app.post("/signup", async (req: Request, res: Response) => {
   const email = req.body?.email?.trim().toLowerCase();
-  const password,
-    verificationCode,
-    verificationCodeExpires = req.body?.password;
+  const password = req.body?.password;
+  const verificationCode = req.body?.verificationCode;
+  const verificationCodeExpires = req.body?.verificationCodeExpires;
 
   if (!email || !password) {
     return res
@@ -73,6 +74,7 @@ app.post("/signup", async (req: Request, res: Response) => {
   }
 });
 
+// VERIFY EMAIL
 app.post("/verifyemail/:userId", async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
