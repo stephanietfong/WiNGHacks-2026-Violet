@@ -34,7 +34,9 @@ connectDB();
 app.post("/signup", async (req: Request, res: Response) => {
   const email = req.body?.email?.trim().toLowerCase();
   const password = req.body?.password;
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const verificationCode = Math.floor(
+    100000 + Math.random() * 900000,
+  ).toString();
   const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
 
   if (!email || !password) {
@@ -107,9 +109,11 @@ app.post("/signup", async (req: Request, res: Response) => {
       });
     }
 
-    res
-      .status(201)
-      .json({ message: "Account created!", userId: newUser._id, emailSent: true });
+    res.status(201).json({
+      message: "Account created!",
+      userId: newUser._id,
+      emailSent: true,
+    });
   } catch (err) {
     if (err instanceof mongoose.Error.ValidationError) {
       return res.status(400).json({ message: err.message });
@@ -653,9 +657,7 @@ app.get("/discovery/:userId/profiles", async (req: Request, res: Response) => {
       .lean();
 
     const excludedUserIds = matches
-      .map((match) =>
-        match.users.find((id) => String(id) !== userId),
-      )
+      .map((match) => match.users.find((id) => String(id) !== userId))
       .filter((id): id is mongoose.Types.ObjectId => Boolean(id));
 
     const users = await User.find({
@@ -674,7 +676,9 @@ app.get("/discovery/:userId/profiles", async (req: Request, res: Response) => {
       })),
     });
   } catch (err) {
-    return res.status(500).json({ message: "Error loading discovery profiles" });
+    return res
+      .status(500)
+      .json({ message: "Error loading discovery profiles" });
   }
 });
 
@@ -685,15 +689,22 @@ app.put("/matches/status", async (req: Request, res: Response) => {
   const status = req.body?.status;
 
   if (!actorUserId || !targetUserId || !status) {
-    return res.status(400).json({ message: "actorUserId, targetUserId, and status are required" });
+    return res
+      .status(400)
+      .json({ message: "actorUserId, targetUserId, and status are required" });
   }
 
-  if (!mongoose.Types.ObjectId.isValid(actorUserId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+  if (
+    !mongoose.Types.ObjectId.isValid(actorUserId) ||
+    !mongoose.Types.ObjectId.isValid(targetUserId)
+  ) {
     return res.status(400).json({ message: "Invalid user id" });
   }
 
   if (actorUserId === targetUserId) {
-    return res.status(400).json({ message: "Cannot set a match status for yourself" });
+    return res
+      .status(400)
+      .json({ message: "Cannot set a match status for yourself" });
   }
 
   if (!["matched", "blocked"].includes(status)) {
@@ -739,7 +750,8 @@ app.put("/matches/status", async (req: Request, res: Response) => {
       match: updated,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error updating match status";
+    const message =
+      err instanceof Error ? err.message : "Error updating match status";
     return res.status(500).json({ message });
   }
 });
@@ -763,7 +775,7 @@ app.get("/likes/:userId/incoming", async (req: Request, res: Response) => {
     const incomingMatches = await Match.find({
       recipient: userObjectId,
       likedBy: { $ne: userObjectId },
-      status: "matched",
+      status: "pending",
     })
       .select("likedBy matchedAt")
       .lean();
@@ -958,7 +970,7 @@ app.get("/messages/match/:matchId", async (req: Request, res: Response) => {
 
   try {
     const messages = await Message.find({ matchId })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
 
     return res.status(200).json({ messages });

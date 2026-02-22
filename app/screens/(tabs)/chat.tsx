@@ -128,10 +128,13 @@ export default function ChatPage() {
       console.log(`Joined match room: ${resolvedMatchId}`);
     }
 
-    // Listen for new messages from other users
+    // Listen for new messages from other users (exclude own sent messages to avoid duplicates)
     const handleNewMessage = (data: { message: ChatMessage }) => {
       console.log("Received new message via socket:", data.message);
-      setMessages((prev) => [...prev, data.message]);
+      // Only add if it's from the other user, not from yourself
+      if (data.message.senderId !== resolvedUserId) {
+        setMessages((prev) => [...prev, data.message]);
+      }
     };
 
     if (socket) {
