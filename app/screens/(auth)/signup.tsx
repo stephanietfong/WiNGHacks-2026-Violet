@@ -41,9 +41,6 @@ export default function SignupScreen() {
       return;
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 10 * 60 * 1000);
-
     try {
       const response = await fetch(`${API_BASE_URL}/signup`, {
         method: "POST",
@@ -51,15 +48,20 @@ export default function SignupScreen() {
         body: JSON.stringify({
           email,
           password,
-          verificationCode: code,
-          verificationCodeExpires: expires,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success!");
+        if (data?.emailSent === false && data?.devVerificationCode) {
+          Alert.alert(
+            "Account Created",
+            `${data.message}\n\nDev verification code: ${data.devVerificationCode}`,
+          );
+        } else {
+          Alert.alert("Success!", data?.message || "Account created.");
+        }
 
         router.push({
           pathname: "/screens/(auth)/verifyemail",

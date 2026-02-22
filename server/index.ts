@@ -25,8 +25,8 @@ connectDB();
 app.post("/signup", async (req: Request, res: Response) => {
   const email = req.body?.email?.trim().toLowerCase();
   const password = req.body?.password;
-  const verificationCode = req.body?.verificationCode;
-  const verificationCodeExpires = req.body?.verificationCodeExpires;
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
 
   if (!email || !password) {
     return res
@@ -56,22 +56,51 @@ app.post("/signup", async (req: Request, res: Response) => {
     });
     await newUser.save();
 
+    const smtpUser = process.env.EMAIL_USER;
+    const smtpPass = process.env.EMAIL_PASS?.replace(/\s+/g, "");
+
+    if (!smtpUser || !smtpPass) {
+      return res
+        .status(500)
+        .json({ message: "Email service is not configured on the server." });
+    }
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Verify Email",
-      text: `Your verification code is ${verificationCode}`,
-    });
+    let emailSent = true;
 
-    res.status(201).json({ message: "Account created!", userId: newUser._id });
+    try {
+      await transporter.sendMail({
+        from: smtpUser,
+        to: email,
+        subject: "Verify Email",
+        text: `Your verification code is ${verificationCode}`,
+      });
+    } catch (mailErr) {
+      emailSent = false;
+      console.error("Verification email failed:", mailErr);
+    }
+
+    if (!emailSent) {
+      return res.status(201).json({
+        message:
+          "Account created, but verification email could not be sent. Please contact support.",
+        userId: newUser._id,
+        emailSent: false,
+        devVerificationCode:
+          process.env.NODE_ENV === "production" ? undefined : verificationCode,
+      });
+    }
+
+    res
+      .status(201)
+      .json({ message: "Account created!", userId: newUser._id, emailSent: true });
   } catch (err) {
     if (err instanceof mongoose.Error.ValidationError) {
       return res.status(400).json({ message: err.message });
