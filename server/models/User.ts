@@ -3,6 +3,8 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IUser extends Document {
   email: string;
   password?: string;
+  verificationCode: string | null;
+  verificationCodeExpires: Date | null;
   isVerified: boolean;
   profile: {
     firstName?: string;
@@ -30,6 +32,8 @@ export interface IUser extends Document {
 const UserSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  verificationCode: { type: String },
+  verificationCodeExpires: { type: Date },
   isVerified: { type: Boolean, default: false },
   profile: {
     firstName: String,

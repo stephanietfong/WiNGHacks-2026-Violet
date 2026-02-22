@@ -2,6 +2,7 @@ import cors from "cors";
 import { randomUUID } from "crypto";
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
+import nodemailer from "nodemailer";
 import { connectDB } from "./db";
 import User from "./models/User";
 
@@ -9,20 +10,19 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+connectDB();
 
-// --- SIGNUP (Already perfect) ---
+// SIGN-UP
 app.post("/signup", async (req: Request, res: Response) => {
   const email = req.body?.email?.trim().toLowerCase();
   const password = req.body?.password;
+  const verificationCode = req.body?.verificationCode;
+  const verificationCodeExpires = req.body?.verificationCodeExpires;
 
   if (!email || !password) {
     return res
       .status(400)
       .json({ message: "Email and password are required." });
-  }
-
-  if (!email.endsWith(".edu")) {
-    return res.status(400).json({ message: "Only .edu emails are permitted." });
   }
 
   if (password.length < 8) {
@@ -36,8 +36,28 @@ app.post("/signup", async (req: Request, res: Response) => {
     if (existingUser)
       return res.status(400).json({ message: "Account already exists." });
 
-    const newUser = new User({ email, password });
+    const newUser = new User({
+      email,
+      password,
+      verificationCode,
+      verificationCodeExpires,
+    });
     await newUser.save();
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Verify Email",
+      text: `Your verification code is ${verificationCode}`,
+    });
 
     res.status(201).json({ message: "Account created!", userId: newUser._id });
   } catch (err) {
@@ -51,6 +71,69 @@ app.post("/signup", async (req: Request, res: Response) => {
 
     console.error("Signup failed:", err);
     res.status(500).json({ message: "Server error during signup" });
+  }
+});
+
+// VERIFY EMAIL
+app.post("/verifyemail/:userId", async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        error: "Code are required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.json({
+        success: true,
+        message: "Email already verified",
+      });
+    }
+
+    if (!user.verificationCodeExpires) {
+      return res.status(400).json({
+        error: "No verification code found",
+      });
+    }
+
+    if (user.verificationCodeExpires.getTime() < Date.now()) {
+      return res.status(400).json({
+        error: "Verification code expired",
+      });
+    }
+
+    if (user.verificationCode !== code) {
+      return res.status(400).json({
+        error: "Invalid verification code",
+      });
+    }
+
+    user.isVerified = true;
+    user.verificationCode = null;
+    user.verificationCodeExpires = null;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Email verified successfully",
+    });
+  } catch (err) {
+    console.error("Verify Email Error:", err);
+
+    res.status(500).json({
+      error: "Server error",
+    });
   }
 });
 

@@ -8,7 +8,8 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import LoginScreen from "./screens/(auth)/login";
 import SignupScreen from "./screens/(auth)/signup";
-import Discovery from "./screens/(tabs)/discovery";
+import VerifyEmailScreen from "./screens/(auth)/verifyemail";
+import DiscoveryPage from "./screens/(tabs)/discovery";
 import LikesPage from "./screens/(tabs)/likes";
 import MessagesPage from "./screens/(tabs)/messages";
 import ProfilePage from "./screens/(tabs)/profile";
@@ -32,7 +33,13 @@ export default function RootLayout() {
         <Stack.Screen name="landing" component={LandingScreen} />
         <Stack.Screen name="login" component={LoginScreen} />
         <Stack.Screen name="signup" component={SignupScreen} />
-        <Stack.Screen name="discovery" component={Discovery} />
+        <Stack.Screen name="forgotpassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="verifyemail" component={VerifyEmailScreen} />
+        <Stack.Screen name="about" component={AboutScreen} />
+        <Stack.Screen name="setup" component={SetupScreen} />
+        <Stack.Screen name="setup2" component={Setup2Screen} />
+        <Stack.Screen name="setup3" component={Setup3Screen} />
+        <Stack.Screen name="discovery" component={DiscoveryPage} />
         <Stack.Screen name="likes" component={LikesPage} />
         <Stack.Screen name="messages" component={MessagesPage} />
         <Stack.Screen name="profile" component={ProfilePage} />
