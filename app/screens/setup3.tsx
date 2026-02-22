@@ -13,6 +13,10 @@ import {
   View,
 } from "react-native";
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
+
 export interface PhotoData {
   uri: string;
   url?: string;
@@ -181,7 +185,29 @@ export default function PhotoSetup() {
       );
 
       const data = await response.json();
-      return { url: data.secure_url, publicId };
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error?.message || "Failed to upload to Cloudinary",
+        );
+      }
+
+      if (data?.secure_url) {
+        return { url: data.secure_url, publicId };
+      }
+
+      if (data?.url) {
+        return { url: data.url, publicId };
+      }
+
+      if (data?.public_id) {
+        return {
+          url: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${data.public_id}`,
+          publicId,
+        };
+      }
+
+      throw new Error("Cloudinary did not return a usable image URL");
     } catch (error) {
       throw new Error("Failed to upload to Cloudinary");
     }
@@ -210,6 +236,14 @@ export default function PhotoSetup() {
 
   // Submit photos
   const handleNext = async () => {
+    if (!resolvedUserId) {
+      Alert.alert(
+        "Session Error",
+        "Missing user information. Please create your account again.",
+      );
+      return;
+    }
+
     if (photos.length === 0) {
       Alert.alert("No Photos", "Please upload at least one photo");
       return;
@@ -244,7 +278,7 @@ export default function PhotoSetup() {
 
       // Save to backend
       const response = await fetch(
-        `http://10.136.197.71:3000/setup/page-3/${resolvedUserId}`,
+        `${API_BASE_URL}/setup/page-3/${resolvedUserId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

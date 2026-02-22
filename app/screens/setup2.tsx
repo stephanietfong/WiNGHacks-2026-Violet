@@ -16,6 +16,10 @@ import {
   View,
 } from "react-native";
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
+
 interface Interest {
   name: string;
 }
@@ -371,7 +375,7 @@ export default function PreferencesSetup() {
   useEffect(() => {
     const fetchInterests = async () => {
       try {
-        const response = await fetch("http://10.136.197.71:3000/interests");
+        const response = await fetch(`${API_BASE_URL}/interests`);
         const data = await response.json();
         const interestsList = data.interests.map((interest: string) => ({
           name: interest,
@@ -456,6 +460,14 @@ export default function PreferencesSetup() {
 
   // Submit preferences
   const handleNext = async () => {
+    if (!resolvedUserId) {
+      Alert.alert(
+        "Session Error",
+        "Missing user information. Please create your account again.",
+      );
+      return;
+    }
+
     if (!location && locationPermission !== "denied") {
       Alert.alert(
         "Location Required",
@@ -466,7 +478,7 @@ export default function PreferencesSetup() {
 
     try {
       const response = await fetch(
-        `http://10.136.197.71:3000/setup/page-2/${resolvedUserId}`,
+        `${API_BASE_URL}/setup/page-2/${resolvedUserId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

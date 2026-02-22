@@ -16,6 +16,10 @@ import {
   View,
 } from "react-native";
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
+
 export default function AccountSetup() {
   const router = useRouter();
 
@@ -119,19 +123,16 @@ export default function AccountSetup() {
       const totalInches = selectedFeet * 12 + selectedInches;
 
       // Update this IP to your current computer IP!
-      const response = await fetch(
-        `http://10.136.197.71:3000/setup/page-1/${resolvedUserId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName,
-            age,
-            heightInches: totalInches,
-            phone,
-          }),
-        },
-      );
+      const response = await fetch(`${API_BASE_URL}/setup/page-1/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName,
+          age,
+          heightInches: totalInches,
+          phone,
+        }),
+      });
 
       const data = await response.json();
 
