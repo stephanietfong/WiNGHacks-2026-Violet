@@ -15,31 +15,62 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
 
 export default function AccountSetup() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // 1. Capture the userId passed from the Signup screen
-  const { userId } = useLocalSearchParams();
+  const {
+    userId,
+    firstName: firstNameParam,
+    phone: phoneParam,
+    age: ageParam,
+    selectedFeet: selectedFeetParam,
+    selectedInches: selectedInchesParam,
+    heightLabel: heightLabelParam,
+    interests: interestsParam,
+    minAge: prefMinAgeParam,
+    maxAge: prefMaxAgeParam,
+    distanceMiles: prefDistanceMilesParam,
+    relationshipType: relationshipTypeParam,
+    locationPermission: locationPermissionParam,
+    latitude: latitudeParam,
+    longitude: longitudeParam,
+  } = useLocalSearchParams();
+
+  const readParam = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+
+  const parseNumberParam = (
+    value: string | string[] | undefined,
+    fallback: number,
+  ) => {
+    const parsed = Number(readParam(value));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const resolvedUserId = readParam(userId);
 
   const MIN_AGE = 18;
   const MAX_AGE = 100;
 
+  const initialFeet = parseNumberParam(selectedFeetParam, 5);
+  const initialInches = parseNumberParam(selectedInchesParam, 0);
+
   // Form State
-  const [firstName, setFirstName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [age, setAge] = useState(MIN_AGE);
+  const [firstName, setFirstName] = useState(readParam(firstNameParam) ?? "");
+  const [phone, setPhone] = useState(readParam(phoneParam) ?? "");
+  const [age, setAge] = useState(parseNumberParam(ageParam, MIN_AGE));
 
   // Height State
-  const [selectedFeet, setSelectedFeet] = useState(5);
-  const [selectedInches, setSelectedInches] = useState(0);
-  const [heightLabel, setHeightLabel] = useState(`5' 0"`);
+  const [selectedFeet, setSelectedFeet] = useState(initialFeet);
+  const [selectedInches, setSelectedInches] = useState(initialInches);
+  const [heightLabel, setHeightLabel] = useState(
+    readParam(heightLabelParam) ?? `${initialFeet}' ${initialInches}"`,
+  );
   const [showHeightPicker, setShowHeightPicker] = useState(false);
 
   // Slider Refs
@@ -109,7 +140,23 @@ export default function AccountSetup() {
         // Navigate to the next setup page (create this file next!)
         router.push({
           pathname: "/screens/setup2" as any,
-          params: { userId },
+          params: {
+            userId: resolvedUserId,
+            firstName,
+            phone,
+            age: String(age),
+            selectedFeet: String(selectedFeet),
+            selectedInches: String(selectedInches),
+            heightLabel,
+            interests: readParam(interestsParam) ?? "",
+            minAge: readParam(prefMinAgeParam) ?? "",
+            maxAge: readParam(prefMaxAgeParam) ?? "",
+            distanceMiles: readParam(prefDistanceMilesParam) ?? "",
+            relationshipType: readParam(relationshipTypeParam) ?? "",
+            locationPermission: readParam(locationPermissionParam) ?? "",
+            latitude: readParam(latitudeParam) ?? "",
+            longitude: readParam(longitudeParam) ?? "",
+          },
         });
       } else {
         Alert.alert("Error", data.message || "Failed to save profile.");
@@ -170,10 +217,7 @@ export default function AccountSetup() {
   ).current;
 
   return (
-    <LinearGradient
-      colors={["#FE9FB8", "#FEB2AB"]}
-      style={[styles.gradient, { paddingTop: insets.top }]}
-    >
+    <LinearGradient colors={["#FE9FB8", "#FEB2AB"]} style={styles.gradient}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -386,16 +430,14 @@ export default function AccountSetup() {
         )}
       </ScrollView>
 
-      <View
-        style={[styles.bottomRow, { bottom: Math.max(insets.bottom + 60, 96) }]}
-      >
+      <View style={styles.bottomRow}>
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextIcon}>→</Text>
         </TouchableOpacity>
 
         <View style={styles.dotsRow}>
-          <View style={styles.dot} />
           <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
           <View style={styles.dot} />
           <View style={styles.dot} />
         </View>
@@ -518,7 +560,7 @@ const styles = StyleSheet.create({
   },
   bottomRow: {
     position: "absolute",
-    bottom: 36,
+    bottom: 96,
     left: 0,
     right: 0,
     paddingHorizontal: 24,

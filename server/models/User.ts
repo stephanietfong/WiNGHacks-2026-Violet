@@ -10,7 +10,7 @@ export interface IUser extends Document {
     heightInches?: number;
     phone?: string;
     pronouns?: string;
-    photos: { url: string; isVerificationPhoto: boolean }[];
+    photos: { url: string; publicId: string; isVerificationPhoto: boolean }[];
     bannedWords: string[];
   };
   interests?: string[];
@@ -37,7 +37,7 @@ const UserSchema: Schema = new Schema({
     heightInches: Number,
     phone: String,
     pronouns: String,
-    photos: [{ url: String, isVerificationPhoto: Boolean }],
+    photos: [{ url: String, publicId: String, isVerificationPhoto: Boolean }],
     // Pre-fill with your community safety words
     bannedWords: {
       type: [String],
