@@ -409,6 +409,40 @@ app.get("/users/:userId/photos", async (req: Request, res: Response) => {
   }
 });
 
+// --- GET USER NAME + FIRST PHOTO ---
+app.get("/users/:userId/summary", async (req: Request, res: Response) => {
+  const { userId } = req.params as { userId?: string };
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId" });
+  }
+
+  try {
+    const user = await User.findById(userId)
+      .select("profile.firstName profile.photos")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const firstPhoto = user.profile?.photos?.[0]?.url ?? null;
+
+    return res.status(200).json({
+      userId,
+      firstName: user.profile?.firstName ?? null,
+      firstPhoto,
+    });
+  } catch (err) {
+    console.error("Error getting user summary:", err);
+    return res.status(500).json({ message: "Error retrieving user summary" });
+  }
+});
+
 // --- GET USER PROFILE (READ-ONLY) ---
 app.get("/users/:userId/profile", async (req: Request, res: Response) => {
   const { userId } = req.params;
@@ -830,8 +864,15 @@ app.get("/messages/chats/:userId", async (req: Request, res: Response) => {
   try {
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    const matches = await Match.find({ users: userObjectId })
-      .select("_id users status matchedAt")
+    const matches = await Match.find({
+      status: "matched",
+      $or: [
+        { users: userObjectId },
+        { likedBy: userObjectId },
+        { recipient: userObjectId },
+      ],
+    })
+      .select("_id users status matchedAt likedBy recipient")
       .lean();
 
     if (matches.length === 0) {
@@ -885,13 +926,48 @@ app.get("/messages/match/:matchId", async (req: Request, res: Response) => {
 
   try {
     const messages = await Message.find({ matchId })
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .lean();
 
     return res.status(200).json({ messages });
   } catch (err) {
     console.error("Fetch messages failed:", err);
     return res.status(500).json({ message: "Server error fetching messages" });
+  }
+});
+
+// --- CREATE A MESSAGE ---
+app.post("/messages", async (req: Request, res: Response) => {
+  const matchId = req.body?.matchId;
+  const senderId = req.body?.senderId;
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+
+  if (!matchId || !senderId || !text) {
+    return res.status(400).json({
+      message: "matchId, senderId, and text are required",
+    });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(matchId)) {
+    return res.status(400).json({ message: "Invalid matchId" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(senderId)) {
+    return res.status(400).json({ message: "Invalid senderId" });
+  }
+
+  try {
+    const newMessage = await Message.create({
+      matchId,
+      senderId,
+      text,
+      read: false,
+    });
+
+    return res.status(201).json({ message: newMessage });
+  } catch (err) {
+    console.error("Create message failed:", err);
+    return res.status(500).json({ message: "Server error creating message" });
   }
 });
 
