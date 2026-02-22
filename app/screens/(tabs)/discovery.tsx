@@ -40,6 +40,16 @@ const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
 
+const API_FALLBACK_URLS = Array.from(
+  new Set(
+    [
+      API_BASE_URL,
+      process.env.IP ? `http://${process.env.IP}:3000` : null,
+      "http://localhost:3000",
+    ].filter((value): value is string => Boolean(value)),
+  ),
+);
+
 const formatHeight = (inches?: number) => {
   if (!inches || inches <= 0) return "Not set";
   const feet = Math.floor(inches / 12);
@@ -53,6 +63,7 @@ export default function Discovery() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<DiscoveryProfile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -62,18 +73,25 @@ export default function Discovery() {
 
       setLoading(true);
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/discovery/${resolvedUserId}/profiles`,
-        );
+        for (const baseUrl of API_FALLBACK_URLS) {
+          let response: Response;
+          try {
+            response = await fetch(`${baseUrl}/discovery/${resolvedUserId}/profiles`);
+          } catch {
+            continue;
+          }
 
-        if (!response.ok) {
-          setProfiles([]);
+          if (!response.ok) {
+            continue;
+          }
+
+          const data = await response.json();
+          setProfiles(Array.isArray(data?.profiles) ? data.profiles : []);
+          setCurrentIndex(0);
           return;
         }
 
-        const data = await response.json();
-        setProfiles(Array.isArray(data?.profiles) ? data.profiles : []);
-        setCurrentIndex(0);
+        setProfiles([]);
       } catch {
         setProfiles([]);
       } finally {
@@ -86,26 +104,44 @@ export default function Discovery() {
 
   const currentProfile = profiles[currentIndex] ?? null;
 
-  const handleAction = async (status: "blocked" | "matched") => {
+  const handleAction = async (status: "blocked" | "pending") => {
     if (!resolvedUserId || !currentProfile || saving) return;
 
     try {
       setSaving(true);
+      setActionError(null);
+      let requestFailed = true;
 
-      const response = await fetch(`${API_BASE_URL}/matches/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actorUserId: resolvedUserId,
-          targetUserId: currentProfile.userId,
-          status,
-        }),
-      });
+      for (const baseUrl of API_FALLBACK_URLS) {
+        let response: Response;
+        try {
+          response = await fetch(`${baseUrl}/matches/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actorUserId: resolvedUserId,
+              targetUserId: currentProfile.userId,
+              status,
+            }),
+          });
+        } catch {
+          continue;
+        }
 
-      if (response.ok) {
+        if (!response.ok) {
+          continue;
+        }
+
+        requestFailed = false;
         setCurrentIndex((prev) => prev + 1);
+        return;
+      }
+
+      if (requestFailed) {
+        setActionError("Could not save your action. Please try again.");
       }
     } catch {
+      setActionError("Could not save your action. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -193,7 +229,7 @@ export default function Discovery() {
 
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => handleAction("matched")}
+                onPress={() => handleAction("pending")}
                 disabled={saving}
                 activeOpacity={0.8}
               >
@@ -208,6 +244,12 @@ export default function Discovery() {
               <View style={styles.savingRow}>
                 <ActivityIndicator color="#333" />
                 <Text style={styles.savingText}>Saving...</Text>
+              </View>
+            )}
+
+            {!!actionError && (
+              <View style={styles.errorRow}>
+                <Text style={styles.errorText}>{actionError}</Text>
               </View>
             )}
           </View>
@@ -332,5 +374,16 @@ const styles = StyleSheet.create({
   savingText: {
     color: "#333",
     fontWeight: "600",
+  },
+  errorRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 16,
+    paddingHorizontal: 12,
+  },
+  errorText: {
+    color: "#8a1f1f",
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

@@ -62,7 +62,7 @@ export default function LandingScreen({ navigation }: Props) {
           },
         ]}
       >
-        <Image source={logoImage} />
+        <Image source={logoImage} style={styles.image} />
         <ThemedText type="default" style={styles.tagline}>
           Finally, a space just for women.
         </ThemedText>
@@ -88,13 +88,11 @@ export default function LandingScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Link screen="terms" params={{}} style={styles.termsContainer}>
-          <ThemedText type="link">Terms and Conditions</ThemedText>
-        </Link>
-
         <Link screen="about" params={{}} style={styles.aboutContainer}>
           <ThemedText type="link">About Us</ThemedText>
         </Link>
+
+       
       </Animated.View>
     </ThemedView>
   );
@@ -133,12 +131,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  termsContainer: {
+  aboutContainer: {
     textAlign: "center",
   },
-  aboutContainer: {
-    position: "absolute",
-    bottom: -250,
-    alignSelf: "center",
-  },
+  image: {
+    paddingLeft: 80,
+    paddingRight: 80,
+    marginBottom: -20,
+    resizeMode: "contain",
+  }
 });
