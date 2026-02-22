@@ -289,13 +289,33 @@ export default function PhotoSetup() {
       const data = await response.json();
 
       if (response.ok) {
-        // Navigate to verification page (or home if not built yet)
         Alert.alert("Success", "Photos uploaded!", [
           {
             text: "OK",
             onPress: () => {
               router.push({
-                pathname: "messages" as any,
+                pathname: "/screens/setup4" as any,
+                params: {
+                  userId: resolvedUserId,
+                  firstName: readParam(firstName) ?? "",
+                  phone: readParam(phone) ?? "",
+                  age: readParam(age) ?? "",
+                  selectedFeet: readParam(selectedFeet) ?? "",
+                  selectedInches: readParam(selectedInches) ?? "",
+                  heightLabel: readParam(heightLabel) ?? "",
+                  interests: readParam(interests) ?? "",
+                  minAge: readParam(minAge) ?? "",
+                  maxAge: readParam(maxAge) ?? "",
+                  distanceMiles: readParam(distanceMiles) ?? "",
+                  relationshipType: readParam(relationshipType) ?? "",
+                  locationPermission: readParam(locationPermission) ?? "",
+                  latitude: readParam(latitude) ?? "",
+                  longitude: readParam(longitude) ?? "",
+                  photos:
+                    photos.length > 0
+                      ? encodeURIComponent(JSON.stringify(photos))
+                      : "",
+                },
               });
             },
           },
