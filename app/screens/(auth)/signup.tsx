@@ -4,12 +4,12 @@ import { ThemedView } from "@/components/themed-view";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const API_BASE_URL =
@@ -23,7 +23,6 @@ export default function SignupScreen() {
   const router = useRouter();
 
   const handleSignup = async () => {
-    // 1. Basic Frontend Validation
     if (!email.endsWith(".edu")) {
       Alert.alert(
         "Authentication Error",
@@ -42,24 +41,28 @@ export default function SignupScreen() {
       return;
     }
 
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+
     try {
-      // 2. POST to your Node.js server
-      // Replace '192.168.X.X' with your actual computer IP address
       const response = await fetch(`${API_BASE_URL}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          verificationCode: code,
+          verificationCodeExpires: expires,
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // 3. Success! Move to Page 1 of setup and pass the userId
-        Alert.alert("Success!", "Account created. Let's build your profile.");
+        Alert.alert("Success!");
 
-        // Pass userId as a parameter so Page 1 knows who to update
         router.push({
-          pathname: "/screens/setup",
+          pathname: "/screens/(auth)/verifyemail",
           params: { userId: data.userId },
         });
       } else {
@@ -80,7 +83,7 @@ export default function SignupScreen() {
 
       <View style={styles.inputContainerAndButton}>
         <View style={styles.inputContainer}>
-          <ThemedText type="defaultSemiBold">Email address</ThemedText>
+          <ThemedText type="defaultSemiBold">Email address *</ThemedText>
           <TextInput
             placeholder="School Email (.edu)"
             value={email}
@@ -115,6 +118,9 @@ export default function SignupScreen() {
           <Text style={styles.buttonText}>Create Account</Text>
         </TouchableOpacity>
       </View>
+      <ThemedText type="default" style={styles.link}>
+        *Email addresses must be .edu emails
+      </ThemedText>
     </ThemedView>
   );
 }
