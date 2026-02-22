@@ -7,6 +7,7 @@ type TabKey = "discovery" | "likes" | "messages" | "profile";
 
 interface BottomNavProps {
   activeTab: TabKey;
+  userId?: string;
 }
 
 type TabRoute =
@@ -42,7 +43,7 @@ const tabs: Array<{
   },
 ];
 
-export function BottomNav({ activeTab }: BottomNavProps) {
+export function BottomNav({ activeTab, userId }: BottomNavProps) {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();

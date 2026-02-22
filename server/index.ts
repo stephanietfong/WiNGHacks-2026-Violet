@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import cors from "cors";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
@@ -6,6 +7,8 @@ import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import path from "path";
 import { connectDB } from "./db";
+import Match from "./models/Match";
+import Message from "./models/Message";
 import User from "./models/User";
 
 dotenv.config({ path: path.resolve(process.cwd(), "server/.env") });
@@ -42,9 +45,12 @@ app.post("/signup", async (req: Request, res: Response) => {
     if (existingUser)
       return res.status(400).json({ message: "Account already exists." });
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = new User({
       email,
-      password,
+      password: hashedPassword,
       verificationCode,
       verificationCodeExpires,
     });
@@ -145,7 +151,7 @@ app.post("/verifyemail/:userId", async (req: Request, res: Response) => {
   }
 });
 
-const handleLogin = async (req: Request, res: Response) => {
+app.post("/login", async (req: Request, res: Response) => {
   const email = req.body?.email?.trim().toLowerCase();
   const password = req.body?.password;
 
@@ -158,9 +164,12 @@ const handleLogin = async (req: Request, res: Response) => {
   try {
     const user = await User.findOne({ email });
 
-    if (!user || user.password !== password) {
+    if (!user) {
       return res.status(400).json({ message: "Invalid credentials." });
     }
+
+    const pwMatch = await bcrypt.compare(password, user.password as string);
+    if (!pwMatch) return res.status(400).json({ error: "Invalid credentials" });
 
     const token = `session_${randomUUID()}`;
 
@@ -169,10 +178,7 @@ const handleLogin = async (req: Request, res: Response) => {
     console.error("Login failed:", err);
     return res.status(500).json({ message: "Server error during login" });
   }
-};
-
-app.post("/login", handleLogin);
-app.post("/auth/login", handleLogin);
+});
 
 // --- PAGE 1: BASICS ---
 app.put("/setup/page-1/:userId", async (req: Request, res: Response) => {
@@ -598,6 +604,62 @@ app.get("/interests", (req: Request, res: Response) => {
     "Vinyl Records",
   ];
   res.status(200).json({ interests });
+});
+
+// --- GET ALL CHATS FOR A USER ---
+app.get("/messages/chats/:userId", async (req: Request, res: Response) => {
+  const { userId } = req.params as { userId?: string };
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId" });
+  }
+
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const matches = await Match.find({ users: userObjectId })
+      .select("_id users status matchedAt")
+      .lean();
+
+    if (matches.length === 0) {
+      return res.status(200).json({ chats: [] });
+    }
+
+    const matchIds = matches.map((match) => match._id);
+
+    const messages = await Message.find({
+      matchId: { $in: matchIds },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const messagesByMatch = new Map<string, typeof messages>();
+
+    for (const message of messages) {
+      const key = String(message.matchId);
+      if (!messagesByMatch.has(key)) {
+        messagesByMatch.set(key, []);
+      }
+      messagesByMatch.get(key)?.push(message);
+    }
+
+    const chats = matches.map((match) => ({
+      matchId: match._id,
+      users: match.users,
+      status: match.status,
+      matchedAt: match.matchedAt,
+      messages: messagesByMatch.get(String(match._id)) ?? [],
+    }));
+
+    return res.status(200).json({ chats });
+  } catch (err) {
+    console.error("Fetch chats failed:", err);
+    return res.status(500).json({ message: "Server error fetching chats" });
+  }
 });
 
 const startServer = async () => {
