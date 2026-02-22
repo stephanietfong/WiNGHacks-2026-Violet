@@ -1,7 +1,8 @@
 import { BottomNav } from "@/components/bottom-nav";
+import { ButtonRow } from "@/components/button-row";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from "react-native";
 
 export default function Discovery() {
   return (
@@ -29,19 +30,17 @@ export default function Discovery() {
               alignItems: "center",
             }}
           >
-            <Image
-              source={require("../../../assets/images/hearticon.png")}
-              style={styles.actionHeartIcon}
-            />
-            <Image
-              source={require("../../../assets/images/hearticon.png")}
-              style={styles.actionHeartIcon}
-            />
-            <Image
-              source={require("../../../assets/images/hearticon.png")}
-              style={styles.actionHeartIcon}
-            />
+            
+            
           </View>
+        </View>
+
+        <View>
+            <ButtonRow
+              onReject={() => console.log("Reject button clicked")}
+              onMoreInfo={() => console.log("More info button clicked")}
+              onCheck={() => console.log("Check button clicked")}
+            />
         </View>
       </View>
 
@@ -72,6 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(251, 233, 222, 0.5)",
     borderRadius: 10,
     alignItems: "center",
+    alignSelf: "center", // Center the box horizontally
   },
   name: {
     fontSize: 35,

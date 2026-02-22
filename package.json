@@ -16,6 +16,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@types/jsonwebtoken": "^9.0.10",
+    "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",

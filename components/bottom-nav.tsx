@@ -47,7 +47,16 @@ export function BottomNav({ activeTab }: BottomNavProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrapper, { bottom: insets.bottom + 20 }]}>
+    <View
+      style={[
+        styles.wrapper,
+        {
+          bottom: 5, // Moved slightly lower
+          alignItems: "center",
+          justifyContent: "space-between",
+        },
+      ]}
+    >
       <View style={styles.bar}>
         {tabs.map((tab) => (
           <TouchableOpacity
@@ -85,7 +94,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "space-around", // Changed to space-around for equal spacing around buttons
     backgroundColor: "rgba(251, 233, 222, 0.5)",
     borderRadius: 24,
     paddingHorizontal: 16,
@@ -96,6 +105,7 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
+    marginHorizontal: 15, // Added horizontal margin to increase spacing between buttons
   },
   icon: {
     width: 24,
