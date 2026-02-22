@@ -18,7 +18,7 @@ export default function AboutScreen({ navigation }: Props) {
   return (
     <ScrollView>
       <ThemedView style={styles.container}>
-        <Image source={logoImage} />
+        <Image source={logoImage} style={styles.image} />
         <View style={styles.allTextContainer}>
           <View style={styles.textContainer}>
             <ThemedText type="subtitle" style={styles.introText}>
@@ -145,4 +145,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  image: {
+    paddingLeft: 80,
+    paddingRight: 80,
+    marginBottom: -20,
+    resizeMode: "contain",}
 });

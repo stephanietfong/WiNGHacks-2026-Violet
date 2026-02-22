@@ -651,7 +651,7 @@ app.get("/discovery/:userId/profiles", async (req: Request, res: Response) => {
 
     const matches = await Match.find({
       users: userObjectId,
-      status: { $in: ["matched", "blocked"] },
+      status: { $in: ["matched", "blocked", "pending"] },
     })
       .select("users")
       .lean();
@@ -707,7 +707,7 @@ app.put("/matches/status", async (req: Request, res: Response) => {
       .json({ message: "Cannot set a match status for yourself" });
   }
 
-  if (!["matched", "blocked"].includes(status)) {
+  if (!["pending", "matched", "blocked"].includes(status)) {
     return res.status(400).json({ message: "Invalid status" });
   }
 
@@ -719,7 +719,7 @@ app.put("/matches/status", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const matchedAt = status === "matched" ? new Date() : undefined;
+    const matchedAt = status === "matched" ? new Date() : null;
     const actorObjectId = new mongoose.Types.ObjectId(actorUserId);
     const targetObjectId = new mongoose.Types.ObjectId(targetUserId);
 

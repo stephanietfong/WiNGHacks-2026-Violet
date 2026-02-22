@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -56,6 +57,7 @@ export default function LikesPage() {
   const resolvedUserId = Array.isArray(userId) ? userId[0] : userId;
 
   const [loading, setLoading] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [likes, setLikes] = useState<LikeProfile[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -95,6 +97,45 @@ export default function LikesPage() {
 
     fetchLikes();
   }, [resolvedUserId]);
+
+  const handleAction = async (
+    targetUserId: string,
+    status: "blocked" | "matched",
+  ) => {
+    if (!resolvedUserId || savingUserId) return;
+
+    setSavingUserId(targetUserId);
+    try {
+      for (const baseUrl of API_FALLBACK_URLS) {
+        let response: Response;
+        try {
+          response = await fetch(`${baseUrl}/matches/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actorUserId: resolvedUserId,
+              targetUserId,
+              status,
+            }),
+          });
+        } catch {
+          continue;
+        }
+
+        if (!response.ok) {
+          continue;
+        }
+
+        setLikes((previousLikes) =>
+          previousLikes.filter((like) => like.userId !== targetUserId),
+        );
+        return;
+      }
+    } catch {
+    } finally {
+      setSavingUserId(null);
+    }
+  };
 
   return (
     <LinearGradient
@@ -161,6 +202,39 @@ export default function LikesPage() {
                     Looking for: {likedUser.preferences?.relationshipType || "Not set"}
                   </Text>
                 </View>
+
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleAction(likedUser.userId, "blocked")}
+                    disabled={savingUserId === likedUser.userId}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={require("../../../assets/images/xicon.png")}
+                      style={styles.actionIcon}
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleAction(likedUser.userId, "matched")}
+                    disabled={savingUserId === likedUser.userId}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={require("../../../assets/images/checkicon.png")}
+                      style={styles.actionIcon}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {savingUserId === likedUser.userId && (
+                  <View style={styles.savingRow}>
+                    <ActivityIndicator color="#333" />
+                    <Text style={styles.savingText}>Saving...</Text>
+                  </View>
+                )}
               </View>
             );
           })
@@ -247,5 +321,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#2e2e2e",
     lineHeight: 24,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  actionButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionIcon: {
+    width: 34,
+    height: 34,
+    resizeMode: "contain",
+  },
+  savingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingBottom: 16,
+  },
+  savingText: {
+    color: "#333",
+    fontWeight: "600",
   },
 });

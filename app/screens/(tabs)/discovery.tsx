@@ -86,7 +86,7 @@ export default function Discovery() {
 
   const currentProfile = profiles[currentIndex] ?? null;
 
-  const handleAction = async (status: "blocked" | "matched") => {
+  const handleAction = async (status: "blocked" | "pending") => {
     if (!resolvedUserId || !currentProfile || saving) return;
 
     try {
@@ -193,7 +193,7 @@ export default function Discovery() {
 
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => handleAction("matched")}
+                onPress={() => handleAction("pending")}
                 disabled={saving}
                 activeOpacity={0.8}
               >
