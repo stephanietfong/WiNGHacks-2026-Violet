@@ -5,12 +5,12 @@ import { Link } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const API_BASE_URL =
@@ -22,6 +22,11 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>("");
 
   async function handleLogin() {
+    if (!email.trim() || !password) {
+      Alert.alert("Invalid credentials, please try again");
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
@@ -37,14 +42,15 @@ export default function LoginScreen() {
       const data = await res.json();
 
       if (!res.ok) {
-        Alert.alert("Error", data.message);
+        Alert.alert("Invalid credentials, please try again");
         return;
       }
 
       // Save token
       console.log("JWT:", data.token);
 
-      // Navigate to app
+      // Navigate to discovery
+      router.replace("/screens/(tabs)/discovery");
     } catch (err: any) {
       Alert.alert("Network error");
     }
