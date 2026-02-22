@@ -75,7 +75,7 @@ export default function LandingScreen({ navigation }: Props) {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate("login")}
+            onPress={() => navigation.navigate("discovery")}
           >
             <Text style={styles.buttonText}>Log In</Text>
           </TouchableOpacity>
