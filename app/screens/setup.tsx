@@ -111,6 +111,14 @@ export default function AccountSetup() {
 
   // --- LOGIC: Submit to Backend ---
   const handleNext = async () => {
+    if (!resolvedUserId) {
+      Alert.alert(
+        "Session Error",
+        "Missing user information. Please sign up or log in again.",
+      );
+      return;
+    }
+
     if (!firstName || phone.replace(/\D/g, "").length < 10) {
       Alert.alert(
         "Missing Info",
@@ -123,16 +131,19 @@ export default function AccountSetup() {
       const totalInches = selectedFeet * 12 + selectedInches;
 
       // Update this IP to your current computer IP!
-      const response = await fetch(`${API_BASE_URL}/setup/page-1/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName,
-          age,
-          heightInches: totalInches,
-          phone,
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/setup/page-1/${resolvedUserId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName,
+            age,
+            heightInches: totalInches,
+            phone,
+          }),
+        },
+      );
 
       const data = await response.json();
 

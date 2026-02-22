@@ -5,25 +5,38 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
 } from "react-native";
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
 
 type Props = NativeStackScreenProps<RootStackParamList, "verifyemail">;
 
 export default function VerifyEmailScreen({ navigation }: Props) {
   const { userId } = useLocalSearchParams();
+  const resolvedUserId = Array.isArray(userId) ? userId[0] : userId;
   const [code, setCode] = useState<string>("");
   const [status, setStatus] = useState<string>("");
   const router = useRouter();
 
   const handleVerification = async () => {
+    if (!resolvedUserId) {
+      Alert.alert(
+        "Session Error",
+        "Missing user information. Please sign up again.",
+      );
+      return;
+    }
+
     try {
       const response = await fetch(
-        `http://10.136.248.36:3000/verifyemail/${userId}`,
+        `${API_BASE_URL}/verifyemail/${resolvedUserId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -38,7 +51,7 @@ export default function VerifyEmailScreen({ navigation }: Props) {
       if (response.ok) {
         router.push({
           pathname: "/screens/setup",
-          params: { userId: data.userId },
+          params: { userId: data.userId ?? resolvedUserId },
         });
       } else {
         setStatus("Please try again.");
