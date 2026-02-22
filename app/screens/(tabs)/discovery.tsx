@@ -1,7 +1,7 @@
 // app/screens/tabs/discovery.tsx
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Discovery() {
   return (
@@ -19,7 +19,7 @@ export default function Discovery() {
         <Text style={styles.age}>25</Text>
         <Image
           source={require("../../../assets/images/sample-woman-photo.jpg")}
-          />
+        />
         <View
           style={{
             flexDirection: 'row',
@@ -27,18 +27,24 @@ export default function Discovery() {
             alignItems: 'center',
           }}
         >
-          <Image
-          source={require("../../../assets/images/reject-circle.png")}
-          style={{margin: 15}}
-          />
-          <Image
-          source={require("../../../assets/images/more-info-circle.png")}
-          style={{margin: 15}}
-          />
-          <Image
-          source={require("../../../assets/images/check-circle.png")}
-          style={{margin: 15}}
-          />
+          <TouchableOpacity onPress={() => console.log('Reject button pressed')}>
+            <Image
+              source={require("../../../assets/images/reject-circle.png")}
+              style={{ margin: 15 }}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => console.log('More info button pressed')}>
+            <Image
+              source={require("../../../assets/images/more-info-circle.png")}
+              style={{ margin: 15 }}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => console.log('Accept button pressed')}>
+            <Image
+              source={require("../../../assets/images/check-circle.png")}
+              style={{ margin: 15 }}
+            />
+          </TouchableOpacity>
         </View>
       </View>
     </LinearGradient>
