@@ -50,8 +50,11 @@ export default function LoginScreen() {
       console.log("JWT:", data.token);
 
       // Navigate to discovery
-      router.replace("/screens/(tabs)/discovery");
-    } catch (err: any) {
+      router.replace({
+        pathname: "/screens/(tabs)/discovery",
+        params: { userId: String(data.userId) },
+      });
+    } catch {
       Alert.alert("Network error");
     }
   }

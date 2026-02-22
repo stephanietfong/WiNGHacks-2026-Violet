@@ -5,6 +5,8 @@ import express, { Request, Response } from "express";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import { connectDB } from "./db";
+import Match from "./models/Match";
+import Message from "./models/Message";
 import User from "./models/User";
 
 const app = express();
@@ -366,6 +368,40 @@ app.get("/users/:userId/photos", async (req: Request, res: Response) => {
   }
 });
 
+// --- GET USER NAME + FIRST PHOTO ---
+app.get("/users/:userId/summary", async (req: Request, res: Response) => {
+  const { userId } = req.params as { userId?: string };
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId" });
+  }
+
+  try {
+    const user = await User.findById(userId)
+      .select("profile.firstName profile.photos")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const firstPhoto = user.profile?.photos?.[0]?.url ?? null;
+
+    return res.status(200).json({
+      userId,
+      firstName: user.profile?.firstName ?? null,
+      firstPhoto,
+    });
+  } catch (err) {
+    console.error("Error getting user summary:", err);
+    return res.status(500).json({ message: "Error retrieving user summary" });
+  }
+});
+
 // --- GET INTERESTS LIST ---
 app.get("/interests", (req: Request, res: Response) => {
   const interests = [
@@ -418,6 +454,62 @@ app.get("/interests", (req: Request, res: Response) => {
     "Vinyl Records",
   ];
   res.status(200).json({ interests });
+});
+
+// --- GET ALL CHATS FOR A USER ---
+app.get("/messages/chats/:userId", async (req: Request, res: Response) => {
+  const { userId } = req.params as { userId?: string };
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId" });
+  }
+
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const matches = await Match.find({ users: userObjectId })
+      .select("_id users status matchedAt")
+      .lean();
+
+    if (matches.length === 0) {
+      return res.status(200).json({ chats: [] });
+    }
+
+    const matchIds = matches.map((match) => match._id);
+
+    const messages = await Message.find({
+      matchId: { $in: matchIds },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const messagesByMatch = new Map<string, typeof messages>();
+
+    for (const message of messages) {
+      const key = String(message.matchId);
+      if (!messagesByMatch.has(key)) {
+        messagesByMatch.set(key, []);
+      }
+      messagesByMatch.get(key)?.push(message);
+    }
+
+    const chats = matches.map((match) => ({
+      matchId: match._id,
+      users: match.users,
+      status: match.status,
+      matchedAt: match.matchedAt,
+      messages: messagesByMatch.get(String(match._id)) ?? [],
+    }));
+
+    return res.status(200).json({ chats });
+  } catch (err) {
+    console.error("Fetch chats failed:", err);
+    return res.status(500).json({ message: "Server error fetching chats" });
+  }
 });
 
 const startServer = async () => {

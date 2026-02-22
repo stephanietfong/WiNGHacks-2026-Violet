@@ -7,6 +7,7 @@ type TabKey = "discovery" | "likes" | "messages" | "profile";
 
 interface BottomNavProps {
   activeTab: TabKey;
+  userId?: string;
 }
 
 type TabRoute =
@@ -42,7 +43,7 @@ const tabs: Array<{
   },
 ];
 
-export function BottomNav({ activeTab }: BottomNavProps) {
+export function BottomNav({ activeTab, userId }: BottomNavProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -55,7 +56,10 @@ export function BottomNav({ activeTab }: BottomNavProps) {
             style={styles.button}
             onPress={() => {
               if (tab.key !== activeTab) {
-                router.replace(tab.route as any);
+                router.replace({
+                  pathname: tab.route,
+                  params: userId ? { userId } : undefined,
+                } as any);
               }
             }}
             activeOpacity={0.8}

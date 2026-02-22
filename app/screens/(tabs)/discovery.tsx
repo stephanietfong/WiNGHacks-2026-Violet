@@ -1,10 +1,14 @@
 // app/screens/tabs/discovery.tsx
 import { BottomNav } from "@/components/bottom-nav";
+import { useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 export default function Discovery() {
+  const { userId } = useLocalSearchParams<{ userId?: string | string[] }>();
+  const resolvedUserId = Array.isArray(userId) ? userId[0] : userId;
+
   return (
     <LinearGradient
       colors={["#FE9FB8", "#FFC198"]} // start → end colors
@@ -46,7 +50,7 @@ export default function Discovery() {
         </View>
       </View>
 
-      <BottomNav activeTab="discovery" />
+      <BottomNav activeTab="discovery" userId={resolvedUserId} />
     </LinearGradient>
   );
 }
