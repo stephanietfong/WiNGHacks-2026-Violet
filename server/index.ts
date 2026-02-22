@@ -871,6 +871,30 @@ app.get("/messages/chats/:userId", async (req: Request, res: Response) => {
   }
 });
 
+// --- GET ALL MESSAGES FOR A MATCH ---
+app.get("/messages/match/:matchId", async (req: Request, res: Response) => {
+  const { matchId } = req.params as { matchId?: string };
+
+  if (!matchId) {
+    return res.status(400).json({ message: "matchId is required" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(matchId)) {
+    return res.status(400).json({ message: "Invalid matchId" });
+  }
+
+  try {
+    const messages = await Message.find({ matchId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return res.status(200).json({ messages });
+  } catch (err) {
+    console.error("Fetch messages failed:", err);
+    return res.status(500).json({ message: "Server error fetching messages" });
+  }
+});
+
 const startServer = async () => {
   await connectDB();
 

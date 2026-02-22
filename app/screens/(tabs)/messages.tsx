@@ -1,7 +1,7 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -44,6 +44,7 @@ type UserSummary = {
 };
 
 export default function MessagesPage() {
+  const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId?: string | string[] }>();
   const resolvedUserId = Array.isArray(userId) ? userId[0] : userId;
   const [chats, setChats] = useState<ChatItem[]>([]);
@@ -198,6 +199,15 @@ export default function MessagesPage() {
                 key={chat.matchId}
                 activeOpacity={0.85}
                 style={styles.chatRow}
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/(tabs)/chat",
+                    params: {
+                      matchId: chat.matchId,
+                      userId: resolvedUserId,
+                    },
+                  })
+                }
               >
                 <Image
                   source={
