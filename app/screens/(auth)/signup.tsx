@@ -4,13 +4,17 @@ import { ThemedView } from "@/components/themed-view";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
 
 export default function SignupScreen() {
   const [email, setEmail] = useState<string>("");
@@ -41,7 +45,7 @@ export default function SignupScreen() {
     try {
       // 2. POST to your Node.js server
       // Replace '192.168.X.X' with your actual computer IP address
-      const response = await fetch(`http://10.136.248.36:3000/signup`, {
+      const response = await fetch(`${API_BASE_URL}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

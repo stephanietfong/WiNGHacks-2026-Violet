@@ -5,13 +5,17 @@ import { Link } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
 
 export default function LoginScreen() {
   const [email, setEmail] = useState<string>("");
@@ -19,7 +23,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     try {
-      const res = await fetch(`http://${process.env.IP}:3000/auth/login`, {
+      const res = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

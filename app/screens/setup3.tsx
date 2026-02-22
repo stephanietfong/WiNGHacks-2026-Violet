@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Alert,
     Image,
@@ -12,7 +12,10 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.IP ? `http://${process.env.IP}:3000` : "http://localhost:3000");
 
 export interface PhotoData {
   uri: string;
@@ -21,15 +24,108 @@ export interface PhotoData {
 }
 
 export default function PhotoSetup() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { userId } = useLocalSearchParams();
+  const {
+    userId,
+    firstName,
+    phone,
+    age,
+    selectedFeet,
+    selectedInches,
+    heightLabel,
+    interests,
+    minAge,
+    maxAge,
+    distanceMiles,
+    relationshipType,
+    locationPermission,
+    latitude,
+    longitude,
+    photos: photosParam,
+  } = useLocalSearchParams();
 
-  const [photos, setPhotos] = useState<PhotoData[]>([]);
+  const readParam = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+
+  const parsePhotosParam = (
+    value: string | string[] | undefined,
+  ): PhotoData[] => {
+    const raw = readParam(value);
+    if (!raw) return [];
+
+    try {
+      const decoded = decodeURIComponent(raw);
+      const parsed = JSON.parse(decoded);
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed
+        .filter(
+          (item) =>
+            item &&
+            typeof item.uri === "string" &&
+            typeof item.isVerificationPhoto === "boolean",
+        )
+        .map((item) => ({
+          uri: item.uri,
+          url: typeof item.url === "string" ? item.url : undefined,
+          isVerificationPhoto: item.isVerificationPhoto,
+        }));
+    } catch {
+      return [];
+    }
+  };
+
+  const resolvedUserId = readParam(userId) ?? "";
+
+  const [photos, setPhotos] = useState<PhotoData[]>(
+    parsePhotosParam(photosParam),
+  );
   const [uploading, setUploading] = useState(false);
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(
     null,
   );
+
+  useEffect(() => {
+    const serializedPhotos =
+      photos.length > 0 ? encodeURIComponent(JSON.stringify(photos)) : "";
+
+    router.setParams({
+      userId: resolvedUserId,
+      firstName: readParam(firstName) ?? "",
+      phone: readParam(phone) ?? "",
+      age: readParam(age) ?? "",
+      selectedFeet: readParam(selectedFeet) ?? "",
+      selectedInches: readParam(selectedInches) ?? "",
+      heightLabel: readParam(heightLabel) ?? "",
+      interests: readParam(interests) ?? "",
+      minAge: readParam(minAge) ?? "",
+      maxAge: readParam(maxAge) ?? "",
+      distanceMiles: readParam(distanceMiles) ?? "",
+      relationshipType: readParam(relationshipType) ?? "",
+      locationPermission: readParam(locationPermission) ?? "",
+      latitude: readParam(latitude) ?? "",
+      longitude: readParam(longitude) ?? "",
+      photos: serializedPhotos,
+    });
+  }, [
+    age,
+    distanceMiles,
+    firstName,
+    heightLabel,
+    interests,
+    latitude,
+    locationPermission,
+    longitude,
+    maxAge,
+    minAge,
+    phone,
+    photos,
+    relationshipType,
+    resolvedUserId,
+    router,
+    selectedFeet,
+    selectedInches,
+  ]);
 
   const CLOUDINARY_CLOUD_NAME = "dnug5q7e1"; // Replace with your Cloudinary cloud name
   const CLOUDINARY_UPLOAD_PRESET = "violetpics1"; // Replace with your upload preset
@@ -62,14 +158,22 @@ export default function PhotoSetup() {
   };
 
   // Upload to Cloudinary
-  const uploadToCloudinary = async (photo: PhotoData): Promise<string> => {
+  const uploadToCloudinary = async (
+    photo: PhotoData,
+    userId: string,
+  ): Promise<{ url: string; publicId: string }> => {
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(7);
+    const publicId = `users/${userId}/photo-${timestamp}-${randomId}`;
+
     const formData = new FormData();
     formData.append("file", {
       uri: photo.uri,
       type: "image/jpeg",
-      name: `photo_${Date.now()}.jpg`,
+      name: `photo_${timestamp}.jpg`,
     } as any);
     formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("public_id", publicId); // Add naming convention
 
     try {
       const response = await fetch(
@@ -81,7 +185,29 @@ export default function PhotoSetup() {
       );
 
       const data = await response.json();
-      return data.secure_url;
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error?.message || "Failed to upload to Cloudinary",
+        );
+      }
+
+      if (data?.secure_url) {
+        return { url: data.secure_url, publicId };
+      }
+
+      if (data?.url) {
+        return { url: data.url, publicId };
+      }
+
+      if (data?.public_id) {
+        return {
+          url: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${data.public_id}`,
+          publicId,
+        };
+      }
+
+      throw new Error("Cloudinary did not return a usable image URL");
     } catch (error) {
       throw new Error("Failed to upload to Cloudinary");
     }
@@ -110,6 +236,14 @@ export default function PhotoSetup() {
 
   // Submit photos
   const handleNext = async () => {
+    if (!resolvedUserId) {
+      Alert.alert(
+        "Session Error",
+        "Missing user information. Please create your account again.",
+      );
+      return;
+    }
+
     if (photos.length === 0) {
       Alert.alert("No Photos", "Please upload at least one photo");
       return;
@@ -130,9 +264,13 @@ export default function PhotoSetup() {
       // Upload all photos to Cloudinary
       const uploadedPhotos = await Promise.all(
         photos.map(async (photo) => {
-          const url = await uploadToCloudinary(photo);
+          const { url, publicId } = await uploadToCloudinary(
+            photo,
+            resolvedUserId,
+          );
           return {
             url,
+            publicId,
             isVerificationPhoto: photo.isVerificationPhoto,
           };
         }),
@@ -140,7 +278,7 @@ export default function PhotoSetup() {
 
       // Save to backend
       const response = await fetch(
-        `http://10.136.197.71:3000/setup/page-3/${userId}`,
+        `${API_BASE_URL}/setup/page-3/${resolvedUserId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -173,20 +311,14 @@ export default function PhotoSetup() {
   };
 
   return (
-    <LinearGradient
-      colors={["#FE9FB8", "#FEB2AB"]}
-      style={[styles.gradient, { paddingTop: insets.top }]}
-    >
+    <LinearGradient colors={["#FE9FB8", "#FEB2AB"]} style={styles.gradient}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.heading}>Add Photos</Text>
-        <Text style={styles.subtitle}>
-          Upload 1-6 photos. The first photo will be used to verify your
-          account.
-        </Text>
+        <Text style={styles.subtitle}>Upload 1-6 photos.</Text>
 
         {/* Photo Grid */}
         <View style={styles.photoGrid}>
@@ -213,8 +345,9 @@ export default function PhotoSetup() {
               onPress={pickImage}
               disabled={uploading}
             >
-              <Text style={styles.addPhotoIcon}>+</Text>
-              <Text style={styles.addPhotoText}>Add Photo</Text>
+              <View style={styles.addPhotoIconCircle}>
+                <Text style={styles.addPhotoIcon}>+</Text>
+              </View>
             </TouchableOpacity>
           )}
         </View>
@@ -268,31 +401,67 @@ export default function PhotoSetup() {
             </View>
           </View>
         </Modal>
-
-        <View style={styles.bottomRow}>
-          <View style={styles.dotsRow}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={[styles.dot, styles.dotActive]} />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.nextButton, uploading && styles.nextButtonDisabled]}
-            onPress={handleNext}
-            disabled={uploading}
-          >
-            <Text style={styles.nextIcon}>{uploading ? "⋯" : "→"}</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      <View style={styles.bottomRow}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() =>
+            router.push({
+              pathname: "/screens/setup2" as any,
+              params: {
+                userId: resolvedUserId,
+                firstName: readParam(firstName) ?? "",
+                phone: readParam(phone) ?? "",
+                age: readParam(age) ?? "",
+                selectedFeet: readParam(selectedFeet) ?? "",
+                selectedInches: readParam(selectedInches) ?? "",
+                heightLabel: readParam(heightLabel) ?? "",
+                interests: readParam(interests) ?? "",
+                minAge: readParam(minAge) ?? "",
+                maxAge: readParam(maxAge) ?? "",
+                distanceMiles: readParam(distanceMiles) ?? "",
+                relationshipType: readParam(relationshipType) ?? "",
+                locationPermission: readParam(locationPermission) ?? "",
+                latitude: readParam(latitude) ?? "",
+                longitude: readParam(longitude) ?? "",
+                photos:
+                  photos.length > 0
+                    ? encodeURIComponent(JSON.stringify(photos))
+                    : "",
+              },
+            })
+          }
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.nextButton, uploading && styles.nextButtonDisabled]}
+          onPress={handleNext}
+          disabled={uploading}
+        >
+          <Text style={styles.nextIcon}>{uploading ? "⋯" : "→"}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dotsRow}>
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
+        </View>
+      </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
-  scroll: { flex: 1 },
+  gradient: {
+    flex: 1,
+    minHeight: "100%",
+    overflow: "visible",
+  },
+  scroll: { flex: 1, overflow: "visible", zIndex: 20 },
   content: { paddingHorizontal: 24, paddingBottom: 48 },
   heading: {
     fontSize: 34,
@@ -356,24 +525,27 @@ const styles = StyleSheet.create({
   },
   addPhotoButton: {
     width: "31%",
-    aspectRatio: 1,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.4)",
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "rgba(0,0,0,0.3)",
+    aspectRatio: 0.6,
+    borderRadius: 16,
+    backgroundColor: "#E9C2BC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addPhotoIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#B88BD0",
     alignItems: "center",
     justifyContent: "center",
   },
   addPhotoIcon: {
-    fontSize: 32,
+    fontSize: 28,
+    lineHeight: 28,
     color: "#111",
-    marginBottom: 4,
-  },
-  addPhotoText: {
-    fontSize: 11,
-    color: "#111",
-    fontWeight: "500",
+    width: "100%",
+    textAlign: "center",
+    includeFontPadding: false,
   },
   photoCount: {
     fontSize: 12,
@@ -447,19 +619,39 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   bottomRow: {
-    marginTop: 36,
+    position: "absolute",
+    bottom: 96,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    elevation: 100,
+  },
+  dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: "rgba(251, 233, 222, 0.5)",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
-  dotsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.71)",
+    width: 12,
+    height: 12,
+    borderRadius: 7,
+    backgroundColor: "rgba(255, 255, 255, 1)",
   },
-  dotActive: { backgroundColor: "#7B4DE1" },
+  dotActive: {
+    backgroundColor: "#A893CE",
+    width: 12,
+    height: 12,
+    borderRadius: 9,
+  },
   nextButton: {
     width: 56,
     height: 56,
@@ -467,9 +659,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#A893CE",
     alignItems: "center",
     justifyContent: "center",
+    position: "absolute",
+    right: 24,
+    top: -65,
+  },
+  backButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#A893CE",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    left: 24,
+    top: -65,
   },
   nextButtonDisabled: {
     opacity: 0.6,
   },
-  nextIcon: { fontSize: 24, color: "#000" },
+  nextIcon: { fontSize: 24, color: "#000000" },
+  backIcon: { fontSize: 24, color: "#000000" },
 });
