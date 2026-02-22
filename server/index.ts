@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import cors from "cors";
 import { randomUUID } from "crypto";
 import express, { Request, Response } from "express";
@@ -36,9 +37,12 @@ app.post("/signup", async (req: Request, res: Response) => {
     if (existingUser)
       return res.status(400).json({ message: "Account already exists." });
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = new User({
       email,
-      password,
+      password: hashedPassword,
       verificationCode,
       verificationCodeExpires,
     });
@@ -139,7 +143,7 @@ app.post("/verifyemail/:userId", async (req: Request, res: Response) => {
   }
 });
 
-const handleLogin = async (req: Request, res: Response) => {
+app.post("/login", async (req: Request, res: Response) => {
   const email = req.body?.email?.trim().toLowerCase();
   const password = req.body?.password;
 
@@ -152,9 +156,12 @@ const handleLogin = async (req: Request, res: Response) => {
   try {
     const user = await User.findOne({ email });
 
-    if (!user || user.password !== password) {
+    if (!user) {
       return res.status(400).json({ message: "Invalid credentials." });
     }
+
+    const pwMatch = await bcrypt.compare(password, user.password as string);
+    if (!pwMatch) return res.status(400).json({ error: "Invalid credentials" });
 
     const token = `session_${randomUUID()}`;
 
@@ -163,10 +170,7 @@ const handleLogin = async (req: Request, res: Response) => {
     console.error("Login failed:", err);
     return res.status(500).json({ message: "Server error during login" });
   }
-};
-
-app.post("/login", handleLogin);
-app.post("/auth/login", handleLogin);
+});
 
 // --- PAGE 1: BASICS ---
 app.put("/setup/page-1/:userId", async (req: Request, res: Response) => {
